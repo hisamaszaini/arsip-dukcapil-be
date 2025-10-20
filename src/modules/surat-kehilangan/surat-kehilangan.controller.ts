@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query, Request } from '@nestjs/common';
 import { SuratKehilanganService } from './surat-kehilangan.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CreateDto, createSchema, FindAllSuratKehilanganDto, findAllSuratKehilanganSchema, UpdateDto, updateSchema } from './dto/surat-kehilangan.dto';
@@ -7,6 +7,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { JwtPayload } from '../auth/auth.types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('surat-kehilangan')
@@ -44,6 +45,7 @@ export class SuratKehilanganController {
   create(
     @Body(new ZodValidationPipe(createSchema)) createSuratKehilanganDto: CreateDto,
     @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+    @Request() req: { user: JwtPayload }
   ) {
     const requiredFiles = [
       'file',
@@ -55,20 +57,32 @@ export class SuratKehilanganController {
       }
     }
 
-    return this.suratKehilanganService.create(createSuratKehilanganDto, files);
+    return this.suratKehilanganService.create(createSuratKehilanganDto, files, req.user.userId);
   }
 
   @Get()
   @UsePipes(new ZodValidationPipe(findAllSuratKehilanganSchema))
   @HttpCode(HttpStatus.OK)
-  findAll(@Query() query: FindAllSuratKehilanganDto) {
+  findAll(
+    @Query() query: FindAllSuratKehilanganDto,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.suratKehilanganService.findAll(query, req.user.userId);
+    }
     return this.suratKehilanganService.findAll(query);
   }
 
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string) {
+  findOne(
+    @Param('id') id: string,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.suratKehilanganService.findOne(+id, req.user.userId);
+    }
     return this.suratKehilanganService.findOne(+id);
   }
 
@@ -94,13 +108,23 @@ export class SuratKehilanganController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateSchema)) body: UpdateDto,
     @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+    @Request() req: { user: JwtPayload },
   ) {
+    if (req.user.role !== "ADMIN") {
+      return this.suratKehilanganService.update(+id, body, files, req.user.userId);
+    }
     return this.suratKehilanganService.update(+id, body, files);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string) {
+  remove(
+    @Param('id') id: string,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.suratKehilanganService.remove(+id, req.user.userId);
+    }
     return this.suratKehilanganService.remove(+id);
   }
 }

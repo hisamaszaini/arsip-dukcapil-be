@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query, Request } from '@nestjs/common';
 import { AktaKelahiranService } from './akta-kelahiran.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CreateDto, createSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kelahiran.dto';
@@ -7,6 +7,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { JwtPayload } from '../auth/auth.types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('akta-kelahiran')
@@ -49,6 +50,7 @@ export class AktaKelahiranController {
   create(
     @Body(new ZodValidationPipe(createSchema)) createAktaKelahiranDto: CreateDto,
     @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+    @Request() req: { user: JwtPayload }
   ) {
     const requiredFiles = [
       'fileSuratKelahiran',
@@ -64,20 +66,32 @@ export class AktaKelahiranController {
       }
     }
 
-    return this.aktaKelahiranService.create(createAktaKelahiranDto, files);
+    const userId = req.user.userId;
+    return this.aktaKelahiranService.create(createAktaKelahiranDto, files, userId);
   }
 
   @Get()
   @UsePipes(new ZodValidationPipe(findAllAktaSchema))
   @HttpCode(HttpStatus.OK)
-  findAll(@Query() query: FindAllAktaDto) {
+  findAll(
+    @Query() query: FindAllAktaDto,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKelahiranService.findAll(query, req.user.userId);
+    }
     return this.aktaKelahiranService.findAll(query);
   }
 
-
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string) {
+  findOne(
+    @Param('id') id: string,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKelahiranService.findOne(+id, req.user.userId);
+    }
     return this.aktaKelahiranService.findOne(+id);
   }
 
@@ -108,13 +122,27 @@ export class AktaKelahiranController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateSchema)) body: UpdateDto,
     @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+    @Request() req: { user: JwtPayload },
   ) {
-    return this.aktaKelahiranService.update(+id, body, files);
+    const userId = req.user.userId;
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKelahiranService.update(+id, body, files, userId);
+    } else {
+      return this.aktaKelahiranService.update(+id, body, files);
+    }
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string) {
-    return this.aktaKelahiranService.remove(+id);
+  remove(
+    @Param('id') id: string,
+    @Request() req: { user: JwtPayload },
+  ) {
+    const userId = req.user.userId;
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKelahiranService.remove(+id, userId);
+    } else {
+      return this.aktaKelahiranService.remove(+id);
+    }
   }
 }

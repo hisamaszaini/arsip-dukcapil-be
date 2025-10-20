@@ -1,4 +1,4 @@
-import { HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateDto, FindAllAktaDto, UpdateDto } from './dto/akta-kematian.dto';
 import { FieldConflictException } from '@/common/utils/fieldConflictException';
@@ -10,7 +10,7 @@ export class AktaKematianService {
 
   constructor(private prisma: PrismaService) { }
 
-  async create(data: CreateDto, files: { [key: string]: Express.Multer.File[] }) {
+  async create(data: CreateDto, files: { [key: string]: Express.Multer.File[] }, userId: number) {
     try {
       const checkNIK = await this.prisma.aktaKematian.findUnique({
         where: { nik: data.nik },
@@ -21,6 +21,7 @@ export class AktaKematianService {
 
       const finalData = {
         ...data,
+        createdById: userId,
         fileSuratKematian: `${this.UPLOAD_PATH}/${files.fileSuratKematian![0].filename}`,
         fileKk: `${this.UPLOAD_PATH}/${files.fileKk![0].filename}`,
         fileLampiran: files.fileLampiran?.[0]
@@ -35,11 +36,11 @@ export class AktaKematianService {
       }
 
       console.error(error);
-      throw new InternalServerErrorException('Gagal membuat akun baru');
+      throw new InternalServerErrorException('Gagal menambahkan akta kematian baru');
     }
   }
 
-  async findAll(dto: FindAllAktaDto) {
+  async findAll(dto: FindAllAktaDto, userId?: number) {
     const {
       page = 1,
       limit = 20,
@@ -49,6 +50,9 @@ export class AktaKematianService {
     } = dto;
 
     const where: any = {};
+
+    if (userId) where.createdById = userId;
+
     if (search) {
       where.OR = [
         { nama: { contains: search, mode: 'insensitive' } },
@@ -80,11 +84,13 @@ export class AktaKematianService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, userId?: number) {
     try {
       const data = await this.prisma.aktaKematian.findFirstOrThrow({
         where: { id }
       });
+
+      if (userId && data.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan mengambil akta kematian ini.");
 
       return {
         message: 'Akta kematian berhasil diambil',
@@ -94,7 +100,7 @@ export class AktaKematianService {
       if (error.code === 'P2025') {
         throw new NotFoundException('Akta Kematian tidak ditemukan');
       }
-      throw new InternalServerErrorException('Gagal mengambil data akte kematian');
+      throw new InternalServerErrorException('Gagal mengambil data akta kematian');
     }
   }
 
@@ -102,51 +108,61 @@ export class AktaKematianService {
     id: number,
     data: UpdateDto,
     files: { [key: string]: Express.Multer.File[] },
+    userId?: number
   ) {
-    const record = await this.prisma.aktaKematian.findUnique({ where: { id } });
-    if (!record) throw new NotFoundException('Akta Kematian tidak ditemukan');
+    try {
+      const record = await this.prisma.aktaKematian.findFirstOrThrow({ where: { id } });
+      if (userId && record.createdById !== userId) throw new ForbiddenException('Anda tidak diizinkan memperbarui akta ini.');
 
-    const uploadSubfolder = this.UPLOAD_PATH;
+      const uploadSubfolder = this.UPLOAD_PATH;
 
-    const updatedData = {
-      ...data,
-      fileSuratKematian: files.fileSuratKematian?.[0]
-        ? await handleUploadAndUpdate({
-          file: files.fileSuratKematian[0],
-          oldFilePath: record.fileSuratKematian,
-          uploadSubfolder,
-        })
-        : record.fileSuratKematian,
-      fileKk: files.fileKk?.[0]
-        ? await handleUploadAndUpdate({
-          file: files.fileKk[0],
-          oldFilePath: record.fileKk,
-          uploadSubfolder,
-        })
-        : record.fileKk,
-      fileLampiran: files.fileLampiran?.[0]
-        ? await handleUploadAndUpdate({
-          file: files.fileLampiran[0],
-          oldFilePath: record.fileLampiran ?? undefined,
-          uploadSubfolder,
-        })
-        : record.fileLampiran ?? undefined,
-    };
+      const updatedData = {
+        ...data,
+        fileSuratKematian: files.fileSuratKematian?.[0]
+          ? await handleUploadAndUpdate({
+            file: files.fileSuratKematian[0],
+            oldFilePath: record.fileSuratKematian,
+            uploadSubfolder,
+          })
+          : record.fileSuratKematian,
+        fileKk: files.fileKk?.[0]
+          ? await handleUploadAndUpdate({
+            file: files.fileKk[0],
+            oldFilePath: record.fileKk,
+            uploadSubfolder,
+          })
+          : record.fileKk,
+        fileLampiran: files.fileLampiran?.[0]
+          ? await handleUploadAndUpdate({
+            file: files.fileLampiran[0],
+            oldFilePath: record.fileLampiran ?? undefined,
+            uploadSubfolder,
+          })
+          : record.fileLampiran ?? undefined,
+      };
 
-    return this.prisma.$transaction(async (tx) => {
-      const updatedRecord = await tx.aktaKematian.update({
-        where: { id },
-        data: updatedData,
+      return this.prisma.$transaction(async (tx) => {
+        const updatedRecord = await tx.aktaKematian.update({
+          where: { id },
+          data: updatedData,
+        });
+        return updatedRecord;
       });
-      return updatedRecord;
-    });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Akta Kematian tidak ditemukan');
+      }
+
+      throw new InternalServerErrorException('Gagal memperbarui data akta kelahiran');
+    }
   }
 
-  async remove(id: number) {
-    const record = await this.prisma.aktaKematian.findUnique({ where: { id } });
-    if (!record) throw new NotFoundException('Akta Kematian tidak ditemukan');
-
+  async remove(id: number, userId?: number) {
     try {
+      const record = await this.prisma.aktaKematian.findFirstOrThrow({ where: { id } });
+
+      if (userId && record.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan menghapus data ini.")
+
       await this.prisma.aktaKematian.delete({ where: { id } });
 
       await Promise.all([
@@ -160,6 +176,9 @@ export class AktaKematianService {
         message: 'Akta Kematian berhasil dihapus',
       };
     } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Akta kematian tidak ditemukan');
+      }
       console.error(error);
       throw new InternalServerErrorException('Gagal menghapus Akta Kematian');
     }

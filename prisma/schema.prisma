@@ -34,8 +34,11 @@ model User {
   statusUser   StatusUser @default(ACTIVE)
   refreshToken String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  AktaKematian    AktaKematian[]
+  AktaKelahiran   AktaKelahiran[]
+  SuratKehilangan SuratKehilangan[]
 }
 
 model AktaKematian {
@@ -46,10 +49,13 @@ model AktaKematian {
   fileKk            String
   fileLampiran      String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([createdAt])
+  @@index([createdById])
 }
 
 model AktaKelahiran {
@@ -63,10 +69,13 @@ model AktaKelahiran {
   fileSPTJMPernikahan String
   fileLampiran        String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([createdAt])
+  @@index([createdById])
 }
 
 model SuratKehilangan {
@@ -75,8 +84,11 @@ model SuratKehilangan {
   nama String
   file String
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([createdAt])
+  @@index([createdById])
 }

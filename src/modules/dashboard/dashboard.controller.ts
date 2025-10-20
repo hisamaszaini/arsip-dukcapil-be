@@ -1,15 +1,23 @@
-import { Controller, Get, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { DashboardService } from './dashboard.service';
+import { JwtPayload } from '../auth/auth.types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) { }
-  
+
   @Get()
   @HttpCode(HttpStatus.OK)
-  dashboardData(){
-    return this.dashboardService.getDashboardData();
+  dashboardData(
+    @Request() req: { user: JwtPayload },
+  ) {
+    const user = req.user;
+    if (user.role === "ADMIN") {
+      return this.dashboardService.getDashboardData();
+    } else {
+      return this.dashboardService.getDashboardDataOperator(req.user.userId);
+    }
   }
 }

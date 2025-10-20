@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query, Request } from '@nestjs/common';
 import { AktaKematianService } from './akta-kematian.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CreateDto, createSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kematian.dto';
@@ -7,6 +7,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { JwtPayload } from '../auth/auth.types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('akta-kematian')
@@ -46,6 +47,7 @@ export class AktaKematianController {
   create(
     @Body(new ZodValidationPipe(createSchema)) createAktaKematianDto: CreateDto,
     @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+    @Request() req: { user: JwtPayload }
   ) {
     const requiredFiles = [
       'fileSuratKematian',
@@ -57,21 +59,33 @@ export class AktaKematianController {
         throw new BadRequestException(`File ${key} wajib diunggah`);
       }
     }
+    const userId = req.user.userId;
 
-    return this.aktaKematianService.create(createAktaKematianDto, files);
+    return this.aktaKematianService.create(createAktaKematianDto, files, userId);
   }
 
   @Get()
   @UsePipes(new ZodValidationPipe(findAllAktaSchema))
   @HttpCode(HttpStatus.OK)
-  findAll(@Query() query: FindAllAktaDto) {
+  findAll(
+    @Query() query: FindAllAktaDto,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKematianService.findAll(query, req.user.userId);
+    }
     return this.aktaKematianService.findAll(query);
   }
 
-
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string) {
+  findOne(
+    @Param('id') id: string,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKematianService.findOne(+id, req.user.userId);
+    }
     return this.aktaKematianService.findOne(+id);
   }
 
@@ -99,13 +113,23 @@ export class AktaKematianController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateSchema)) body: UpdateDto,
     @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+    @Request() req: { user: JwtPayload },
   ) {
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKematianService.update(+id, body, files, req.user.userId);
+    }
     return this.aktaKematianService.update(+id, body, files);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string) {
+  remove(
+    @Param('id') id: string,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKematianService.remove(+id, req.user.userId);
+    }
     return this.aktaKematianService.remove(+id);
   }
 }

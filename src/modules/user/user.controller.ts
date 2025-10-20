@@ -4,6 +4,7 @@ import { CreateDto, createSchema, FindAllUserDto, findAllUserSchema, UpdateDto, 
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt.guard';
 import { RolesGuard } from '@/modules/auth/guards/roles.guard';
 import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
+import { Roles } from '@/common/decorators/roles.decorator';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('user')
@@ -11,6 +12,7 @@ export class UserController {
   constructor(private readonly userService: UserService) { }
 
   @Post()
+  @Roles('ADMIN')
   @UsePipes(new ZodValidationPipe(createSchema))
   @HttpCode(HttpStatus.OK)
   create(
@@ -20,6 +22,7 @@ export class UserController {
   }
 
   @Get()
+  @Roles('ADMIN')
   @UsePipes(new ZodValidationPipe(findAllUserSchema))
   @HttpCode(HttpStatus.OK)
   findAll(
@@ -29,6 +32,7 @@ export class UserController {
   }
 
   @Get(':id')
+  @Roles('ADMIN')
   @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
     return this.userService.findOne(+id);
@@ -47,6 +51,7 @@ export class UserController {
   }
 
   @Patch(':id')
+  @Roles('ADMIN')
   update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateSchema)) updateUserDto: UpdateDto
@@ -55,6 +60,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @Roles('ADMIN')
   @HttpCode(HttpStatus.OK)
   remove(@Param('id') id: string) {
     return this.userService.remove(+id);
