@@ -11,7 +11,7 @@ export const statusUserEnum = z.enum([
 ]);
 
 export const createSchema = z.object({
-    name: z.string().nonempty('Nama wajib diisi').trim(),
+    name: z.string().nonempty('Nama wajib diisi').trim().transform((val) => val.toUpperCase()),
     email: z.string().email().nonempty('Email wajib diisi').trim(),
     username: z.string().nonempty('Username wajib diisi').trim(),
     role: roleUserEnum.default('ADMIN'),

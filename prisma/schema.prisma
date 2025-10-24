@@ -34,25 +34,30 @@ model User {
   statusUser   StatusUser @default(ACTIVE)
   refreshToken String?
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  AktaKematian    AktaKematian[]
-  AktaKelahiran   AktaKelahiran[]
-  SuratKehilangan SuratKehilangan[]
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  AktaKematian               AktaKematian[]
+  AktaKelahiran              AktaKelahiran[]
+  SuratKehilangan            SuratKehilangan[]
+  SuratPermohonanPindah      SuratPermohonanPindah[]
+  SuratPerubahanKependudukan SuratPerubahanKependudukan[]
 }
 
 model AktaKematian {
-  id                Int     @id @default(autoincrement())
-  nik               String  @unique
+  id                Int      @id @default(autoincrement())
+  nik               String   @unique
   nama              String
   fileSuratKematian String
   fileKk            String
   fileLampiran      String?
-
-  createdById Int?
-  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  fileRegister      String?
+  fileLaporan       String?
+  fileSPTJM         String?
+  
+  createdById       Int?
+  createdBy         User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([createdAt])
   @@index([createdById])
@@ -83,6 +88,40 @@ model SuratKehilangan {
   nik  String @unique
   nama String
   file String
+
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([createdById])
+}
+
+model SuratPermohonanPindah {
+  id             Int     @id @default(autoincrement())
+  nik            String  @unique
+  nama           String
+  filePmhnPindah String
+  fileKk         String
+  fileLampiran   String?
+
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([createdById])
+}
+
+model SuratPerubahanKependudukan {
+  id            Int     @id @default(autoincrement())
+  nik           String  @unique
+  nama          String
+  filePerubahan String
+  fileKk        String
+  fileLampiran  String?
 
   createdById Int?
   createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)

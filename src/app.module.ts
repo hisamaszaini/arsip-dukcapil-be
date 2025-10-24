@@ -8,6 +8,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AktaKelahiranModule } from './modules/akta-kelahiran/akta-kelahiran.module';
 import { AktaKematianModule } from './modules/akta-kematian/akta-kematian.module';
 import { SuratKehilanganModule } from './modules/surat-kehilangan/surat-kehilangan.module';
+import { SuratPermohonanPindahModule } from './modules/surat-permohonan-pindah/surat-permohonan-pindah.module';
+import { SuratPerubahanKependudukanModule } from './modules/surat-perubahan-kependudukan/surat-perubahan-kependudukan.module';
 
 @Module({
   imports: [
@@ -17,7 +19,9 @@ import { SuratKehilanganModule } from './modules/surat-kehilangan/surat-kehilang
     AuthModule,
     AktaKelahiranModule,
     AktaKematianModule,
-    SuratKehilanganModule
+    SuratKehilanganModule,
+    SuratPermohonanPindahModule,
+    SuratPerubahanKependudukanModule
   ],
   controllers: [AppController],
   providers: [AppService],

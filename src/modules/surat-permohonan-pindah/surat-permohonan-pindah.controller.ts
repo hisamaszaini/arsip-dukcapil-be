@@ -1,34 +1,31 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query, Request } from '@nestjs/common';
-import { AktaKematianService } from './akta-kematian.service';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, BadRequestException, UploadedFiles, Request, UsePipes, Query } from '@nestjs/common';
+import { SuratPermohonanPindahService } from './surat-permohonan-pindah.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { CreateDto, createSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kematian.dto';
-import { ZodValidationPipe } from 'nestjs-zod';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { JwtPayload } from '../auth/auth.types';
+import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
+import { CreateDto, createSchema, FindAllSuratPermohonanPindahDto, findAllSuratPermohonanPindahSchema, UpdateDto, updateSchema } from './dto/surat-permohonan-pindah.dto';
 
 @UseGuards(JwtAuthGuard)
-@Controller('akta-kematian')
-export class AktaKematianController {
-  constructor(private readonly aktaKematianService: AktaKematianService) { }
+@Controller('surat-permohonan-pindah')
+export class SuratPermohonanPindahController {
+  constructor(private readonly suratPermohonanPindahService: SuratPermohonanPindahService) { }
 
   @Post()
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: 'fileSuratKematian', maxCount: 1 },
+        { name: 'filePmhnPindah', maxCount: 1 },
         { name: 'fileKk', maxCount: 1 },
-        { name: 'fileLampiran', maxCount: 1 }, // opsional
-        { name: 'fileRegister', maxCount: 1 },
-        { name: 'fileLaporan', maxCount: 1 },
-        { name: 'fileSPTJM', maxCount: 1 },
+        { name: 'fileLampiran', maxCount: 1 },
       ],
       {
         storage: diskStorage({
-          destination: './uploads/akta-kematian',
+          destination: './uploads/surat-permohonan-pindah',
           filename: (req, file, cb) => {
             if (!file) return cb(new BadRequestException('File tidak ditemukan'), '');
             const ext = path.extname(file.originalname);
@@ -48,12 +45,12 @@ export class AktaKematianController {
     ),
   )
   create(
-    @Body(new ZodValidationPipe(createSchema)) createAktaKematianDto: CreateDto,
+    @Body(new ZodValidationPipe(createSchema)) data: CreateDto,
     @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
     @Request() req: { user: JwtPayload }
   ) {
     const requiredFiles = [
-      'fileSuratKematian',
+      'filePmhnPindah',
       'fileKk',
     ];
 
@@ -64,20 +61,20 @@ export class AktaKematianController {
     }
     const userId = req.user.userId;
 
-    return this.aktaKematianService.create(createAktaKematianDto, files, userId);
+    return this.suratPermohonanPindahService.create(data, files, userId);
   }
 
   @Get()
-  @UsePipes(new ZodValidationPipe(findAllAktaSchema))
+  @UsePipes(new ZodValidationPipe(findAllSuratPermohonanPindahSchema))
   @HttpCode(HttpStatus.OK)
   findAll(
-    @Query() query: FindAllAktaDto,
+    @Query() query: FindAllSuratPermohonanPindahDto,
     @Request() req: { user: JwtPayload },
   ) {
     if (req.user.role !== "ADMIN") {
-      return this.aktaKematianService.findAll(query, req.user.userId);
+      return this.suratPermohonanPindahService.findAll(query, req.user.userId);
     }
-    return this.aktaKematianService.findAll(query);
+    return this.suratPermohonanPindahService.findAll(query);
   }
 
   @Get(':id')
@@ -87,21 +84,18 @@ export class AktaKematianController {
     @Request() req: { user: JwtPayload },
   ) {
     if (req.user.role !== "ADMIN") {
-      return this.aktaKematianService.findOne(+id, req.user.userId);
+      return this.suratPermohonanPindahService.findOne(+id, req.user.userId);
     }
-    return this.aktaKematianService.findOne(+id);
+    return this.suratPermohonanPindahService.findOne(+id);
   }
 
   @Patch(':id')
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: 'fileSuratKematian', maxCount: 1 },
+        { name: 'filePmhnPindah', maxCount: 1 },
         { name: 'fileKk', maxCount: 1 },
         { name: 'fileLampiran', maxCount: 1 },
-        { name: 'fileRegister', maxCount: 1 },
-        { name: 'fileLaporan', maxCount: 1 },
-        { name: 'fileSPTJM', maxCount: 1 },
       ],
       {
         limits: { fileSize: 2 * 1024 * 1024 },
@@ -122,9 +116,9 @@ export class AktaKematianController {
     @Request() req: { user: JwtPayload },
   ) {
     if (req.user.role !== "ADMIN") {
-      return this.aktaKematianService.update(+id, body, files, req.user.userId);
+      return this.suratPermohonanPindahService.update(+id, body, files, req.user.userId);
     }
-    return this.aktaKematianService.update(+id, body, files);
+    return this.suratPermohonanPindahService.update(+id, body, files);
   }
 
   @Delete(':id')
@@ -134,8 +128,8 @@ export class AktaKematianController {
     @Request() req: { user: JwtPayload },
   ) {
     if (req.user.role !== "ADMIN") {
-      return this.aktaKematianService.remove(+id, req.user.userId);
+      return this.suratPermohonanPindahService.remove(+id, req.user.userId);
     }
-    return this.aktaKematianService.remove(+id);
+    return this.suratPermohonanPindahService.remove(+id);
   }
 }

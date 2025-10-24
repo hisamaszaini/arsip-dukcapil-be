@@ -27,6 +27,15 @@ export class AktaKematianService {
         fileLampiran: files.fileLampiran?.[0]
           ? `${this.UPLOAD_PATH}/${files.fileLampiran[0].filename}`
           : null,
+        fileRegister: files.fileRegister?.[0]
+          ? `${this.UPLOAD_PATH}/${files.fileRegister[0].filename}`
+          : null,
+        fileLaporan: files.fileLaporan?.[0]
+          ? `${this.UPLOAD_PATH}/${files.fileLaporan[0].filename}`
+          : null,
+        fileSPTJM: files.fileSPTJM?.[0]
+          ? `${this.UPLOAD_PATH}/${files.fileSPTJM[0].filename}`
+          : null,
       };
       return this.prisma.aktaKematian.create({ data: finalData });
 
@@ -139,6 +148,27 @@ export class AktaKematianService {
             uploadSubfolder,
           })
           : record.fileLampiran ?? undefined,
+        fileRegister: files.fileRegister?.[0]
+          ? await handleUploadAndUpdate({
+            file: files.fileRegister[0],
+            oldFilePath: record.fileRegister ?? undefined,
+            uploadSubfolder,
+          })
+          : record.fileRegister ?? undefined,
+        fileLaporan: files.fileLaporan?.[0]
+          ? await handleUploadAndUpdate({
+            file: files.fileLaporan[0],
+            oldFilePath: record.fileLaporan ?? undefined,
+            uploadSubfolder,
+          })
+          : record.fileLaporan ?? undefined,
+        fileSPTJM: files.fileSPTJM?.[0]
+          ? await handleUploadAndUpdate({
+            file: files.fileSPTJM[0],
+            oldFilePath: record.fileSPTJM ?? undefined,
+            uploadSubfolder,
+          })
+          : record.fileSPTJM ?? undefined,
       };
 
       return this.prisma.$transaction(async (tx) => {
@@ -169,6 +199,9 @@ export class AktaKematianService {
         deleteFileFromDisk(record.fileSuratKematian),
         deleteFileFromDisk(record.fileKk),
         record.fileLampiran ? deleteFileFromDisk(record.fileLampiran) : Promise.resolve(),
+        record.fileRegister ? deleteFileFromDisk(record.fileRegister) : Promise.resolve(),
+        record.fileLaporan ? deleteFileFromDisk(record.fileLaporan) : Promise.resolve(),
+        record.fileSPTJM ? deleteFileFromDisk(record.fileSPTJM) : Promise.resolve(),
       ]);
 
       return {

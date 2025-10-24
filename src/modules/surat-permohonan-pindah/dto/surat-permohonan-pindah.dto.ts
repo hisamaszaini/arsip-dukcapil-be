@@ -7,7 +7,7 @@ export const createSchema = z.object({
 
 export const updateSchema = createSchema.partial();
 
-export const findAllSuratKehilanganSchema = z.object({
+export const findAllSuratPermohonanPindahSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   search: z.string().optional(),
@@ -22,4 +22,4 @@ export const findAllSuratKehilanganSchema = z.object({
 
 export type CreateDto = z.infer<typeof createSchema>;
 export type UpdateDto = z.infer<typeof updateSchema>;
-export type FindAllSuratKehilanganDto = z.infer<typeof findAllSuratKehilanganSchema>;
+export type FindAllSuratPermohonanPindahDto = z.infer<typeof findAllSuratPermohonanPindahSchema>;
