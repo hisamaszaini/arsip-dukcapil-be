@@ -1,70 +1,70 @@
--- CreateEnum
-CREATE TYPE "Role" AS ENUM ('ADMIN', 'OPERATOR');
+-- -- CreateEnum
+-- CREATE TYPE "Role" AS ENUM ('ADMIN', 'OPERATOR');
 
--- CreateEnum
-CREATE TYPE "StatusUser" AS ENUM ('ACTIVE', 'INACTIVE');
+-- -- CreateEnum
+-- CREATE TYPE "StatusUser" AS ENUM ('ACTIVE', 'INACTIVE');
 
--- CreateTable
-CREATE TABLE "User" (
-    "id" SERIAL NOT NULL,
-    "name" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "username" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'ADMIN',
-    "statusUser" "StatusUser" NOT NULL DEFAULT 'ACTIVE',
-    "refreshToken" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+-- -- CreateTable
+-- CREATE TABLE "User" (
+--     "id" SERIAL NOT NULL,
+--     "name" TEXT NOT NULL,
+--     "email" TEXT NOT NULL,
+--     "username" TEXT NOT NULL,
+--     "password" TEXT NOT NULL,
+--     "role" "Role" NOT NULL DEFAULT 'ADMIN',
+--     "statusUser" "StatusUser" NOT NULL DEFAULT 'ACTIVE',
+--     "refreshToken" TEXT,
+--     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-);
+--     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+-- );
 
--- CreateTable
-CREATE TABLE "AktaKematian" (
-    "id" SERIAL NOT NULL,
-    "nik" TEXT NOT NULL,
-    "nama" TEXT NOT NULL,
-    "fileSuratKematian" TEXT NOT NULL,
-    "fileKk" TEXT NOT NULL,
-    "fileLampiran" TEXT,
-    "createdById" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+-- -- CreateTable
+-- CREATE TABLE "AktaKematian" (
+--     "id" SERIAL NOT NULL,
+--     "nik" TEXT NOT NULL,
+--     "nama" TEXT NOT NULL,
+--     "fileSuratKematian" TEXT NOT NULL,
+--     "fileKk" TEXT NOT NULL,
+--     "fileLampiran" TEXT,
+--     "createdById" INTEGER,
+--     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "AktaKematian_pkey" PRIMARY KEY ("id")
-);
+--     CONSTRAINT "AktaKematian_pkey" PRIMARY KEY ("id")
+-- );
 
--- CreateTable
-CREATE TABLE "AktaKelahiran" (
-    "id" SERIAL NOT NULL,
-    "nik" TEXT NOT NULL,
-    "nama" TEXT NOT NULL,
-    "fileSuratKelahiran" TEXT NOT NULL,
-    "fileKk" TEXT NOT NULL,
-    "fileSuratNikah" TEXT NOT NULL,
-    "fileSPTJMKelahiran" TEXT NOT NULL,
-    "fileSPTJMPernikahan" TEXT NOT NULL,
-    "fileLampiran" TEXT,
-    "createdById" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+-- -- CreateTable
+-- CREATE TABLE "AktaKelahiran" (
+--     "id" SERIAL NOT NULL,
+--     "nik" TEXT NOT NULL,
+--     "nama" TEXT NOT NULL,
+--     "fileSuratKelahiran" TEXT NOT NULL,
+--     "fileKk" TEXT NOT NULL,
+--     "fileSuratNikah" TEXT NOT NULL,
+--     "fileSPTJMKelahiran" TEXT NOT NULL,
+--     "fileSPTJMPernikahan" TEXT NOT NULL,
+--     "fileLampiran" TEXT,
+--     "createdById" INTEGER,
+--     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "AktaKelahiran_pkey" PRIMARY KEY ("id")
-);
+--     CONSTRAINT "AktaKelahiran_pkey" PRIMARY KEY ("id")
+-- );
 
--- CreateTable
-CREATE TABLE "SuratKehilangan" (
-    "id" SERIAL NOT NULL,
-    "nik" TEXT NOT NULL,
-    "nama" TEXT NOT NULL,
-    "file" TEXT NOT NULL,
-    "createdById" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+-- -- CreateTable
+-- CREATE TABLE "SuratKehilangan" (
+--     "id" SERIAL NOT NULL,
+--     "nik" TEXT NOT NULL,
+--     "nama" TEXT NOT NULL,
+--     "file" TEXT NOT NULL,
+--     "createdById" INTEGER,
+--     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "SuratKehilangan_pkey" PRIMARY KEY ("id")
-);
+--     CONSTRAINT "SuratKehilangan_pkey" PRIMARY KEY ("id")
+-- );
 
 -- CreateTable
 CREATE TABLE "SuratPermohonanPindah" (
