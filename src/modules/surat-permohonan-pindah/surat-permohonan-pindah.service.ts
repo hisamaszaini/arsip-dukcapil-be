@@ -46,7 +46,7 @@ export class SuratPermohonanPindahService {
       limit = 20,
       search,
       sortBy = 'id',
-      sortOrder = 'asc',
+      sortOrder = 'desc',
     } = dto;
 
     const where: any = {};

@@ -44,8 +44,8 @@ model User {
 }
 
 model AktaKematian {
-  id                Int      @id @default(autoincrement())
-  nik               String   @unique
+  id                Int     @id @default(autoincrement())
+  noAkta            String  @unique
   nama              String
   fileSuratKematian String
   fileKk            String
@@ -53,11 +53,11 @@ model AktaKematian {
   fileRegister      String?
   fileLaporan       String?
   fileSPTJM         String?
-  
-  createdById       Int?
-  createdBy         User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([createdAt])
   @@index([createdById])
@@ -65,7 +65,7 @@ model AktaKematian {
 
 model AktaKelahiran {
   id                  Int     @id @default(autoincrement())
-  nik                 String  @unique
+  noAkta              String  @unique
   nama                String
   fileSuratKelahiran  String
   fileKk              String

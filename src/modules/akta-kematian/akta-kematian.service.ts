@@ -13,10 +13,10 @@ export class AktaKematianService {
   async create(data: CreateDto, files: { [key: string]: Express.Multer.File[] }, userId: number) {
     try {
       const checkNIK = await this.prisma.aktaKematian.findUnique({
-        where: { nik: data.nik },
+        where: { noAkta: data.noAkta },
       });
       if (checkNIK) {
-        throw new FieldConflictException('nik', 'Akta Kematian dengan nik tersebut sudah ada di arsip');
+        throw new FieldConflictException('noAkta', 'Akta Kematian dengan Nomor Akta tersebut sudah ada di arsip');
       }
 
       const finalData = {
@@ -55,7 +55,7 @@ export class AktaKematianService {
       limit = 20,
       search,
       sortBy = 'id',
-      sortOrder = 'asc',
+      sortOrder = 'desc',
     } = dto;
 
     const where: any = {};

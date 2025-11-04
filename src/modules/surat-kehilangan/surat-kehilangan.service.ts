@@ -42,7 +42,7 @@ export class SuratKehilanganService {
       limit = 20,
       search,
       sortBy = 'id',
-      sortOrder = 'asc',
+      sortOrder = 'desc',
     } = dto;
 
     const where: any = {};

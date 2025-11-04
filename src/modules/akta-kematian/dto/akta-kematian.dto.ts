@@ -1,7 +1,8 @@
 import z from "zod";
 
 export const createSchema = z.object({
-    nik: z.string().nonempty('NIK wajib diisi').trim().regex(/^\d{16}$/, 'NIK harus terdiri dari 16 digit angka'),
+    // nik: z.string().nonempty('NIK wajib diisi').trim().regex(/^\d{16}$/, 'NIK harus terdiri dari 16 digit angka'),
+    noAkta: z.string().nonempty('No. Akta wajib diisi').trim(),
     nama: z.string().nonempty('Nama wajib diisi').trim().transform((val) => val.toUpperCase()),
 });
 
@@ -13,7 +14,7 @@ export const findAllAktaSchema = z.object({
   search: z.string().optional(),
   sortBy: z.enum([
     'id',
-    'nik',
+    'noAkta',
     'nama',
     'createdAt',
   ]).optional().default('id'),

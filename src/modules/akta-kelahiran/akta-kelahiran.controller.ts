@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query, Request } from '@nestjs/common';
 import { AktaKelahiranService } from './akta-kelahiran.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { CreateDto, createSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kelahiran.dto';
+import { CreateDto, createSchema, DeleteBerkasDto, deleteBerkasSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kelahiran.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -70,6 +70,45 @@ export class AktaKelahiranController {
     return this.aktaKelahiranService.create(createAktaKelahiranDto, files, userId);
   }
 
+  // @Post()
+  // @HttpCode(HttpStatus.OK)
+  // @UseInterceptors(
+  //   FileFieldsInterceptor(
+  //     [
+  //       { name: 'file1', maxCount: 1 },
+  //       { name: 'file2', maxCount: 1 },
+  //       { name: 'file3', maxCount: 1 },
+  //       { name: 'file4', maxCount: 1 },
+  //       { name: 'file5', maxCount: 1 },
+  //       { name: 'file6', maxCount: 1 },
+  //     ],
+  //     {
+  //       storage: diskStorage({
+  //         destination: './uploads/akta-kelahiran',
+  //         filename: (req, file, cb) => {
+  //           const ext = path.extname(file.originalname);
+  //           cb(null, `${uuidv4()}${ext}`);
+  //         },
+  //       }),
+  //       fileFilter: (req, file, cb) => {
+  //         if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+  //           return cb(new BadRequestException('Hanya file JPG/JPEG yang diizinkan'), false);
+  //         }
+  //         cb(null, true);
+  //       },
+  //       limits: { fileSize: 2 * 1024 * 1024 }, // max 2MB
+  //     },
+  //   ),
+  // )
+  // create(
+  //   @Body(new ZodValidationPipe(createSchema)) createAktaKelahiranDto: any,
+  //   @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+  //   @Request() req: { user: JwtPayload },
+  // ) {
+  //   const userId = req.user.userId;
+  //   return this.aktaKelahiranService.create(createAktaKelahiranDto, files, userId);
+  // }
+
   @Get()
   @UsePipes(new ZodValidationPipe(findAllAktaSchema))
   @HttpCode(HttpStatus.OK)
@@ -131,6 +170,19 @@ export class AktaKelahiranController {
       return this.aktaKelahiranService.update(+id, body, files);
     }
   }
+
+  // @Delete(':id/berkas')
+  // @HttpCode(HttpStatus.OK)
+  // async deleteBerkas(
+  //   @Param('id') id: string,
+  //   @Body(new ZodValidationPipe(deleteBerkasSchema)) body: DeleteBerkasDto,
+  //   @Request() req: { user: JwtPayload },
+  // ) {
+  //   if (req.user.role !== "ADMIN") {
+  //     return this.aktaKelahiranService.deleteSatuBerkas(+id, body.fileKey, req.user.userId);
+  //   }
+  //   return this.aktaKelahiranService.deleteSatuBerkas(+id, body.fileKey);
+  // }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
