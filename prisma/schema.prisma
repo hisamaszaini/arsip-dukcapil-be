@@ -45,7 +45,8 @@ model User {
 
 model AktaKematian {
   id                Int     @id @default(autoincrement())
-  noAkta            String  @unique
+  noAkta            String?  @unique
+  nik               String?  @unique
   nama              String
   fileSuratKematian String
   fileKk            String
