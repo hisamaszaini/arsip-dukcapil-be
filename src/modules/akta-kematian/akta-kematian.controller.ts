@@ -3,10 +3,8 @@ import { AktaKematianService } from './akta-kematian.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CreateDto, createSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kematian.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtPayload } from '../auth/auth.types';
 
 @UseGuards(JwtAuthGuard)
@@ -15,56 +13,43 @@ export class AktaKematianController {
   constructor(private readonly aktaKematianService: AktaKematianService) { }
 
   @Post()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'fileSuratKematian', maxCount: 1 },
-        { name: 'fileKk', maxCount: 1 },
-        { name: 'fileLampiran', maxCount: 1 }, // opsional
-        { name: 'fileRegister', maxCount: 1 },
-        { name: 'fileLaporan', maxCount: 1 },
-        { name: 'fileSPTJM', maxCount: 1 },
-      ],
-      {
-        storage: diskStorage({
-          destination: './uploads/akta-kematian',
-          filename: (req, file, cb) => {
-            if (!file) return cb(new BadRequestException('File tidak ditemukan'), '');
-            const ext = path.extname(file.originalname);
-            cb(null, `${uuidv4()}${ext}`);
-          },
-        }),
-        fileFilter: (req, file, cb) => {
-          if (!file) return cb(new BadRequestException('File tidak ditemukan'), false);
-          // Hanya izinkan JPG/JPEG
-          if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
-            return cb(new BadRequestException('Hanya file JPG/JPEG yang diizinkan'), false);
-          }
-          cb(null, true);
-        },
-        limits: { fileSize: 2 * 1024 * 1024 }, // max 2MB
-      }
-    ),
+    FilesInterceptor('files', 10, {
+      storage: memoryStorage(),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+          return cb(
+            new BadRequestException({
+              message: 'Hanya file JPG/JPEG yang diizinkan',
+              errors: { [file.fieldname]: `File ${file.originalname} tidak valid` },
+            }),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+      limits: {
+        fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024,
+      },
+    }),
   )
-  create(
-    @Body(new ZodValidationPipe(createSchema)) createAktaKematianDto: CreateDto,
-    @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
-    @Request() req: { user: JwtPayload }
+  async create(
+    @Body(new ZodValidationPipe(createSchema)) data: CreateDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Request() req: { user: JwtPayload },
   ) {
-    const requiredFiles = [
-      'fileSuratKematian',
-      'fileKk',
-    ];
-
-    for (const key of requiredFiles) {
-      if (!files[key] || files[key].length === 0) {
-        throw new BadRequestException(`File ${key} wajib diunggah`);
-      }
+    if (!files || files.length === 0) {
+      throw new BadRequestException(
+        {
+          errors: [{ field: 'files', message: 'Minimal satu file wajib diunggah.' }],
+        }
+      );
     }
+
     const userId = req.user.userId;
 
-    return this.aktaKematianService.create(createAktaKematianDto, files, userId);
+    return this.aktaKematianService.create(data, files, userId);
   }
 
   @Get()
@@ -94,37 +79,44 @@ export class AktaKematianController {
 
   @Patch(':id')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'fileSuratKematian', maxCount: 1 },
-        { name: 'fileKk', maxCount: 1 },
-        { name: 'fileLampiran', maxCount: 1 },
-        { name: 'fileRegister', maxCount: 1 },
-        { name: 'fileLaporan', maxCount: 1 },
-        { name: 'fileSPTJM', maxCount: 1 },
-      ],
-      {
-        limits: { fileSize: 2 * 1024 * 1024 },
-        fileFilter: (req, file, cb) => {
-          if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
-            return cb(new BadRequestException('Hanya file JPG/JPEG yang diizinkan'), false);
-          }
-          cb(null, true);
-        },
+    FilesInterceptor('files', 10, {
+      storage: memoryStorage(),
+      limits: { fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+          return cb(new BadRequestException({
+            message: 'Hanya file JPG/JPEG yang diizinkan',
+            errors: { [file.fieldname]: `File ${file.originalname} tidak valid` },
+          }), false);
+        }
+        cb(null, true);
       },
-    ),
+    }),
   )
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateSchema)) body: UpdateDto,
-    @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+    @UploadedFiles() files: Express.Multer.File[],
+    @Request() req: { user: JwtPayload },
+  ) {
+    const aktaId = Number(id);
+    const userId = req.user.userId;
+    const isAdmin = req.user.role === 'ADMIN';
+
+    return this.aktaKematianService.update(aktaId, body, files, userId, isAdmin);
+  }
+
+  @Delete('file/:id')
+  @HttpCode(HttpStatus.OK)
+  removeFile(
+    @Param('id') id: string,
     @Request() req: { user: JwtPayload },
   ) {
     if (req.user.role !== "ADMIN") {
-      return this.aktaKematianService.update(+id, body, files, req.user.userId);
+      return this.aktaKematianService.removeFile(+id, req.user.userId);
     }
-    return this.aktaKematianService.update(+id, body, files);
+    return this.aktaKematianService.removeFile(+id);
   }
 
   @Delete(':id')

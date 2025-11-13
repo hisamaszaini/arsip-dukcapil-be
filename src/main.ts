@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -9,7 +8,7 @@ import * as cookieParser from 'cookie-parser';
 import * as express from 'express';
 import { join } from 'path';
 import { cwd } from 'process';
-import { ensureUploadDirs } from './common/utils/ensure-upload-dirs';
+import { MulterExceptionFilter } from './common/filters/multer-exception.filter';
 
 moduleAlias.addAliases({
   '@': path.resolve(__dirname, 'src'),
@@ -24,7 +23,7 @@ async function bootstrap() {
   app.use(cookieParser());
   app.use(express.json());
   app.useGlobalInterceptors(new ApiResponseInterceptor());
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new MulterExceptionFilter(), new HttpExceptionFilter());
   app.use('/uploads', express.static(join(cwd(), 'uploads')));
   // ensureUploadDirs();
 

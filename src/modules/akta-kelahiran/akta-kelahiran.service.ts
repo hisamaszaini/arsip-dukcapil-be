@@ -1,8 +1,11 @@
-import { BadRequestException, ForbiddenException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateDto, FindAllAktaDto, UpdateDto } from './dto/akta-kelahiran.dto';
-import { deleteFileFromDisk, handleUploadAndUpdate } from '@/common/utils/file';
-import { FieldConflictException } from '@/common/utils/fieldConflictException';
+import { deleteFileFromDisk, handleUpload, handleUploadAndUpdate } from '@/common/utils/file';
+import { handleCreateError, handleDeleteError, handleFindError, handleUpdateError } from '@/common/utils/handle-prisma-error';
+import { Prisma } from '@prisma/client';
+import { autoDecryptAndClean, encryptValue, hashDeterministic } from '@/common/utils/EncDecHas';
+import { createdResponse, deletedResponse, foundResponse, listResponse } from '@/common/utils/success-helper';
 
 @Injectable()
 export class AktaKelahiranService {
@@ -10,77 +13,47 @@ export class AktaKelahiranService {
 
   constructor(private prisma: PrismaService) { }
 
-  // async create(
-  //   data: CreateDto,
-  //   files: { [key: string]: Express.Multer.File[] },
-  //   userId: number,
-  // ) {
-  //   try {
-  //     const checkNIK = await this.prisma.aktaKelahiran.findUnique({
-  //       where: { noAkta: data.noAkta },
-  //     });
-  //     if (checkNIK) throw new BadRequestException('Akta Kelahiran dengan NIK tersebut sudah ada');
+  async create(data: CreateDto, files: Express.Multer.File[], userId: number) {
+    if (!files?.length) {
+      throw new BadRequestException('Minimal satu file wajib diunggah.');
+    }
 
-  //     const finalFiles: Array<{ key: string; name: string; url: string }> = [];
-
-  //     for (let i = 1; i <= 6; i++) {
-  //       const key = `file${i}`;
-  //       const file = files[key]?.[0];
-
-  //       if (file) {
-  //         finalFiles.push({
-  //           key,
-  //           name: file.originalname,
-  //           url: `${this.UPLOAD_PATH}/${file.filename}`,
-  //         });
-  //       } else if (i <= 5) {
-  //         throw new BadRequestException(`File ${key} wajib diunggah`);
-  //       }
-  //     }
-
-  //     return this.prisma.aktaKelahiran.create({
-  //       data: {
-  //         ...data,
-  //         createdById: userId,
-  //         files: finalFiles,
-  //       },
-  //     });
-  //   } catch (error) {
-  //     console.error(error);
-  //     throw new InternalServerErrorException('Gagal menambahkan akta kelahiran baru');
-  //   }
-  // }
-
-  async create(data: CreateDto, files: { [key: string]: Express.Multer.File[] }, userId: number) {
     try {
-      const checkNIK = await this.prisma.aktaKelahiran.findUnique({
-        where: { noAkta: data.noAkta },
+      const fileRecords: Prisma.ArsipFileCreateWithoutAktaKelahiranInput[] = [];
+
+      for (const file of files) {
+        const relativePath = await handleUpload({
+          file,
+          uploadSubfolder: this.UPLOAD_PATH,
+        });
+
+        fileRecords.push({
+          originalName: file.originalname,
+          path: relativePath,
+          uploadBy: { connect: { id: userId } },
+        });
+      }
+
+      const noAktaEnc = JSON.stringify(encryptValue(data.noAkta));
+      const noAktaHash = hashDeterministic(data.noAkta);
+
+      const newRecord = await this.prisma.aktaKelahiran.create({
+        data: {
+          noAkta: data.noAkta,
+          noAktaEnc: noAktaEnc,
+          noAktaHash: noAktaHash,
+          noFisik: data.noFisik,
+          createdBy: { connect: { id: userId } },
+          arsipFiles: { create: fileRecords },
+        },
+        include: { arsipFiles: true },
       });
-      if (checkNIK) {
-        throw new FieldConflictException('noAkta', 'Nomor Akta Kelahiran  sudah ada di arsip');
-      }
 
-      const finalData = {
-        ...data,
-        createdById: userId,
-        fileSuratKelahiran: `${this.UPLOAD_PATH}/${files.fileSuratKelahiran![0].filename}`,
-        fileKk: `${this.UPLOAD_PATH}/${files.fileKk![0].filename}`,
-        fileSuratNikah: `${this.UPLOAD_PATH}/${files.fileSuratNikah![0].filename}`,
-        fileSPTJMKelahiran: `${this.UPLOAD_PATH}/${files.fileSPTJMKelahiran![0].filename}`,
-        fileSPTJMPernikahan: `${this.UPLOAD_PATH}/${files.fileSPTJMPernikahan![0].filename}`,
-        fileLampiran: files.fileLampiran?.[0]
-          ? `${this.UPLOAD_PATH}/${files.fileLampiran[0].filename}`
-          : null,
-      };
-      return this.prisma.aktaKelahiran.create({ data: finalData });
+      const cleaned = autoDecryptAndClean(newRecord);
 
+      return createdResponse('Akta Kelahiran', cleaned)
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      console.error(error);
-      throw new InternalServerErrorException('Gagal menambahkan akta kelahiran baru');
+      handleCreateError(error, 'Akta Kelahiran');
     }
   }
 
@@ -108,312 +81,304 @@ export class AktaKelahiranService {
       this.prisma.aktaKelahiran.count({ where }),
       this.prisma.aktaKelahiran.findMany({
         where,
+        include: { arsipFiles: { orderBy: { id: 'asc' } } },
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { [sortBy]: sortOrder },
       }),
     ]);
 
-    // --- Kembalikan response standar ---
-    return {
-      success: true,
-      message: 'Daftar Akta Kelahiran berhasil diambil',
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-      data,
+    const cleaned = autoDecryptAndClean(data);
+    const meta = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     };
+
+    return listResponse('Akta Kelahiran', cleaned, meta);
   }
 
   async findOne(id: number, userId?: number) {
     try {
       const data = await this.prisma.aktaKelahiran.findFirstOrThrow({
-        where: { id }
+        where: { id },
+        include: { arsipFiles: { orderBy: { id: 'asc' } } }
       });
 
       if (userId && data.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan mengambil akta kelahiran ini.");
 
-      return {
-        message: 'Akta kelahiran berhasil diambil',
-        data: data,
-      }
+      const cleaned = autoDecryptAndClean(data);
+
+      return foundResponse('Akta Kelahiran', cleaned)
     } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('Akta Kelahiran tidak ditemukan');
-      }
-      throw new InternalServerErrorException('Gagal mengambil data akta kelahiran');
+      handleFindError(error, 'Akta Kelahiran');
     }
   }
 
   async update(
     id: number,
     data: UpdateDto,
-    files: { [key: string]: Express.Multer.File[] },
-    userId?: number
+    files: Express.Multer.File[],
+    userId: number,
+    isAdmin?: boolean,
   ) {
     try {
-      const record = await this.prisma.aktaKelahiran.findFirstOrThrow({ where: { id } });
-      if (userId && record.createdById !== userId) throw new ForbiddenException('Anda tidak diizinkan memperbarui akta ini.');
-
-      const uploadSubfolder = this.UPLOAD_PATH;
-
-      const updatedData = {
-        ...data,
-        fileSuratKelahiran: files.fileSuratKelahiran?.[0]
-          ? await handleUploadAndUpdate({
-            file: files.fileSuratKelahiran[0],
-            oldFilePath: record.fileSuratKelahiran,
-            uploadSubfolder,
-          })
-          : record.fileSuratKelahiran,
-        fileKk: files.fileKk?.[0]
-          ? await handleUploadAndUpdate({
-            file: files.fileKk[0],
-            oldFilePath: record.fileKk,
-            uploadSubfolder,
-          })
-          : record.fileKk,
-        fileSuratNikah: files.fileSuratNikah?.[0]
-          ? await handleUploadAndUpdate({
-            file: files.fileSuratNikah[0],
-            oldFilePath: record.fileSuratNikah,
-            uploadSubfolder,
-          })
-          : record.fileSuratNikah,
-        fileSPTJMKelahiran: files.fileSPTJMKelahiran?.[0]
-          ? await handleUploadAndUpdate({
-            file: files.fileSPTJMKelahiran[0],
-            oldFilePath: record.fileSPTJMKelahiran,
-            uploadSubfolder,
-          })
-          : record.fileSPTJMKelahiran,
-        fileSPTJMPernikahan: files.fileSPTJMPernikahan?.[0]
-          ? await handleUploadAndUpdate({
-            file: files.fileSPTJMPernikahan[0],
-            oldFilePath: record.fileSPTJMPernikahan,
-            uploadSubfolder,
-          })
-          : record.fileSPTJMPernikahan,
-        fileLampiran: files.fileLampiran?.[0]
-          ? await handleUploadAndUpdate({
-            file: files.fileLampiran[0],
-            oldFilePath: record.fileLampiran ?? undefined,
-            uploadSubfolder,
-          })
-          : record.fileLampiran ?? undefined,
-      };
-
-      return this.prisma.$transaction(async (tx) => {
-        const updatedRecord = await tx.aktaKelahiran.update({
-          where: { id },
-          data: updatedData,
-        });
-        return updatedRecord;
+      // --- Validasi record dulu ---
+      const record = await this.prisma.aktaKelahiran.findUniqueOrThrow({
+        where: { id },
+        include: { arsipFiles: { orderBy: { id: 'asc' } } },
       });
-    } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('Akta Kelahiran tidak ditemukan');
+
+      if (!isAdmin && record.createdById !== userId) {
+        throw new ForbiddenException('Anda tidak diizinkan memperbarui akta ini.');
       }
 
-      throw new InternalServerErrorException('Gagal memperbarui data akta kelahiran');
+      // Cek apakah noAkta berubah
+      let noAktaEnc = record.noAktaEnc;
+      let noAktaHash = record.noAktaHash;
+      let newNoAkta = record.noAkta;
+
+      if (data.noAkta && data.noAkta !== record.noAkta) {
+        // Nilai berubah → generate baru
+        newNoAkta = data.noAkta;
+        noAktaEnc = JSON.stringify(encryptValue(data.noAkta));
+        noAktaHash = hashDeterministic(data.noAkta);
+      }
+
+      // --- Transaksi aman ---
+      return await this.prisma.$transaction(async (tx) => {
+        // Update data utama terlebih dahulu
+        const updatedAkta = await tx.aktaKelahiran.update({
+          where: { id },
+          data: {
+            noAkta: data.noAkta ?? record.noAkta,
+            noAktaEnc: noAktaEnc,
+            noAktaHash: noAktaHash,
+            noFisik: data.noFisik ?? record.noFisik,
+          },
+        });
+
+        const cleaned = autoDecryptAndClean(updatedAkta);
+
+        const uploadSubfolder = this.UPLOAD_PATH;
+
+        // Jika tidak ada file dikirim, hanya update data utama
+        if (!files || files.length === 0) {
+          return {
+            success: true,
+            message: 'Data akta kelahiran berhasil diperbarui',
+            data: cleaned,
+          };
+        }
+
+        // --- Ambil daftar fileIds dari body ---
+        const fileIds = Array.isArray(data.fileIds)
+          ? data.fileIds.map((id) => Number(id))
+          : [];
+
+        const replaceCount = Math.min(fileIds.length, files.length);
+
+        // === MODE 1 — Replace file lama berdasarkan fileIds[] ===
+        if (fileIds.length > 0 && files.length > 0) {
+          for (let i = 0; i < replaceCount; i++) {
+            const fileId = Number(fileIds[i]);
+            const newFile = files[i];
+            if (!newFile) continue;
+
+            const oldFile = await tx.arsipFile.findUnique({ where: { id: fileId } });
+            if (!oldFile) {
+              throw new BadRequestException(`File dengan ID ${fileId} tidak ditemukan`);
+            }
+
+            // Upload file baru dan hapus file lama dari disk menggunakan helper
+            const newPath = await handleUploadAndUpdate({
+              file: newFile,
+              oldFilePath: oldFile.path,
+              uploadSubfolder,
+            });
+
+            // Update record file di database
+            await tx.arsipFile.update({
+              where: { id: fileId },
+              data: {
+                originalName: newFile.originalname,
+                path: newPath,
+                uploadBy: { connect: { id: userId } },
+              },
+            });
+          }
+
+          // === MODE 1.5 — Tambah file baru jika ada sisa file tanpa fileId ===
+          const newFiles = files.slice(replaceCount);
+          if (newFiles.length > 0) {
+            for (const newFile of newFiles) {
+              const relativePath = await handleUpload({
+                file: newFile,
+                uploadSubfolder,
+              });
+
+              await tx.arsipFile.create({
+                data: {
+                  originalName: newFile.originalname,
+                  path: relativePath,
+                  uploadBy: { connect: { id: userId } },
+                  aktaKelahiran: { connect: { id } },
+                },
+              });
+            }
+          }
+
+          // Ambil data terbaru setelah semua update dan penambahan file
+          const refreshed = await tx.aktaKelahiran.findUnique({
+            where: { id },
+            include: { arsipFiles: { orderBy: { id: 'asc' } } },
+          });
+
+          const cleaned = autoDecryptAndClean(refreshed);
+
+          return {
+            success: true,
+            message: newFiles.length > 0
+              ? 'File berhasil diganti dan file baru ditambahkan'
+              : 'File berhasil diganti',
+            data: cleaned,
+          };
+        }
+
+        // === MODE 2 — Tambah file baru tanpa fileIds ===
+        if ((!data.fileIds || data.fileIds.length === 0) && files.length > 0) {
+          for (const newFile of files) {
+            const relativePath = await handleUpload({
+              file: newFile,
+              uploadSubfolder,
+            });
+
+            await tx.arsipFile.create({
+              data: {
+                originalName: newFile.originalname,
+                path: relativePath,
+                uploadBy: { connect: { id: userId } },
+                aktaKelahiran: { connect: { id } },
+              },
+            });
+          }
+
+          const refreshed = await tx.aktaKelahiran.findUnique({
+            where: { id },
+            include: { arsipFiles: { orderBy: { id: 'asc' } } },
+          });
+
+          const cleaned = autoDecryptAndClean(refreshed);
+
+          return {
+            success: true,
+            message: 'File baru berhasil ditambahkan',
+            data: cleaned,
+          };
+        }
+
+        // === MODE 3 — Tidak ada file baru ===
+        return {
+          success: true,
+          message: 'Data akta kelahiran berhasil diperbarui',
+          data: cleaned,
+        };
+      });
+    } catch (error) {
+      // Bersihkan file sementara di disk jika transaksi gagal
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            await deleteFileFromDisk(file.path);
+          } catch {
+            /* abaikan jika file sudah tidak ada */
+          }
+        }
+      }
+
+      // Tangani error secara seragam
+      handleUpdateError(error, 'Akta Kelahiran');
     }
   }
 
-  // async update(
-  //   id: number,
-  //   data: UpdateDto,
-  //   files: { [key: string]: Express.Multer.File[] },
-  //   userId?: number,
-  // ) {
-  //   try {
-  //     const record = await this.prisma.aktaKelahiran.findFirstOrThrow({ where: { id } });
-  //     if (userId && record.createdById !== userId)
-  //       throw new ForbiddenException('Anda tidak diizinkan memperbarui akta ini.');
+  async removeFile(fileId: number, userId?: number) {
+    try {
+      // Ambil file yang ingin dihapus beserta relasi aktaKelahiran
+      const file = await this.prisma.arsipFile.findUniqueOrThrow({
+        where: { id: fileId },
+        include: {
+          aktaKelahiran: {
+            select: {
+              id: true,
+              createdById: true,
+              arsipFiles: {
+                select: { id: true },
+              },
+            },
+          },
+        },
+      });
 
-  //     const uploadSubfolder = this.UPLOAD_PATH;
-  //     const filesArray = record.files as Array<{ key: string; name: string; url: string }> || [];
+      if (!file.aktaKelahiran) {
+        throw new BadRequestException('File tidak memiliki relasi akta kelahiran');
+      }
 
-  //     // Loop file1–file6
-  //     for (let i = 1; i <= 6; i++) {
-  //       const key = `file${i}`;
-  //       const newFile = files[key]?.[0];
-  //       if (newFile) {
-  //         const existingIndex = filesArray.findIndex(f => f.key === key);
+      // Cek apakah user berhak menghapus file
+      if (userId && file.aktaKelahiran.createdById !== userId) {
+        throw new ForbiddenException('Anda tidak memiliki izin untuk menghapus file ini');
+      }
 
-  //         const newFilePath = await handleUploadAndUpdate({
-  //           file: newFile,
-  //           oldFilePath: filesArray[existingIndex]?.url,
-  //           uploadSubfolder,
-  //         });
+      // Cek jumlah file yang dimiliki aktaKelahiran
+      const totalFiles = file.aktaKelahiran.arsipFiles.length;
+      if (totalFiles <= 1) {
+        throw new BadRequestException('Tidak dapat menghapus semua file, setidaknya harus ada 1 file tersisa.');
+      }
 
-  //         const fileObj = { key, name: newFile.originalname, url: newFilePath };
+      // Hapus file dari disk
+      await deleteFileFromDisk(file.path);
 
-  //         if (existingIndex > -1) {
-  //           filesArray[existingIndex] = fileObj;
-  //         } else {
-  //           filesArray.push(fileObj);
-  //         }
-  //       }
-  //     }
+      // Hapus record di database
+      await this.prisma.arsipFile.delete({
+        where: { id: fileId },
+      });
 
-  //     const updatedData = {
-  //       ...data,
-  //       files: filesArray,
-  //     };
-
-  //     return this.prisma.aktaKelahiran.update({
-  //       where: { id },
-  //       data: updatedData,
-  //     });
-  //   } catch (error: any) {
-  //     if (error.code === 'P2025') throw new NotFoundException('Akta Kelahiran tidak ditemukan');
-  //     console.error(error);
-  //     throw new InternalServerErrorException('Gagal memperbarui data akta kelahiran');
-  //   }
-  // }
-
-  // async remove(id: number, userId?: number) {
-  //   try {
-  //     const record = await this.prisma.aktaKelahiran.findFirstOrThrow({
-  //       where: { id },
-  //     });
-
-  //     if (userId && record.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan menghapus data ini.")
-
-  //     await this.prisma.aktaKelahiran.delete({ where: { id } });
-
-  //     await Promise.all([
-  //       deleteFileFromDisk(record.fileSuratKelahiran),
-  //       deleteFileFromDisk(record.fileKk),
-  //       deleteFileFromDisk(record.fileSuratNikah),
-  //       deleteFileFromDisk(record.fileSPTJMKelahiran),
-  //       deleteFileFromDisk(record.fileSPTJMPernikahan),
-  //       record.fileLampiran ? deleteFileFromDisk(record.fileLampiran) : Promise.resolve(),
-  //     ]);
-
-  //     return {
-  //       success: true,
-  //       message: 'Akta Kelahiran berhasil dihapus',
-  //     };
-  //   } catch (error) {
-  //     if (error.code === 'P2025') {
-  //       throw new NotFoundException('Akta Kelahiran tidak ditemukan');
-  //     }
-
-  //     console.error('[AktaKelahiranService.remove]', error);
-  //     throw new InternalServerErrorException('Gagal menghapus Akta Kelahiran');
-  //   }
-  // }
+      return deletedResponse('File');
+    } catch (error) {
+      handleDeleteError(error, 'File akta kelahiran');
+    }
+  }
 
   async remove(id: number, userId?: number) {
     try {
-      const record = await this.prisma.aktaKelahiran.findFirstOrThrow({
+      const record = await this.prisma.aktaKelahiran.findUniqueOrThrow({
         where: { id },
+        include: { arsipFiles: true },
       });
 
-      if (userId && record.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan menghapus data ini.")
-
-      await this.prisma.aktaKelahiran.delete({ where: { id } });
-
-      await Promise.all([
-        deleteFileFromDisk(record.fileSuratKelahiran),
-        deleteFileFromDisk(record.fileKk),
-        deleteFileFromDisk(record.fileSuratNikah),
-        deleteFileFromDisk(record.fileSPTJMKelahiran),
-        deleteFileFromDisk(record.fileSPTJMPernikahan),
-        record.fileLampiran ? deleteFileFromDisk(record.fileLampiran) : Promise.resolve(),
-      ]);
-
-      return {
-        success: true,
-        message: 'Akta Kelahiran berhasil dihapus',
-      };
-    } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('Akta Kelahiran tidak ditemukan');
+      if (userId && record.createdById !== userId) {
+        throw new ForbiddenException('Anda tidak diizinkan menghapus data ini.');
       }
 
-      console.error('[AktaKelahiranService.remove]', error);
-      throw new InternalServerErrorException('Gagal menghapus Akta Kelahiran');
+      await this.prisma.$transaction(async (tx) => {
+        await tx.arsipFile.deleteMany({
+          where: { aktaKelahiranId: id },
+        });
+
+        await tx.aktaKelahiran.delete({
+          where: { id },
+        });
+      });
+
+      if (record.arsipFiles.length > 0) {
+        await Promise.all(
+          record.arsipFiles.map((file) => deleteFileFromDisk(file.path)),
+        );
+      }
+
+      return deletedResponse('Akta Kelahiran');
+    } catch (error) {
+      handleDeleteError(error, 'Akta Kelahiran');
     }
   }
-
-  // async remove(id: number, userId?: number) {
-  //   try {
-  //     const record = await this.prisma.aktaKelahiran.findFirstOrThrow({ where: { id } });
-
-  //     if (userId && record.createdById !== userId)
-  //       throw new ForbiddenException("Anda tidak diizinkan menghapus data ini.");
-
-  //     await this.prisma.aktaKelahiran.delete({ where: { id } });
-
-  //     const filesArray = record.files as Array<{ key: string; name: string; url: string }> || [];
-
-  //     await Promise.all(
-  //       filesArray.map(file => deleteFileFromDisk(file.url))
-  //     );
-
-  //     return {
-  //       success: true,
-  //       message: 'Akta Kelahiran berhasil dihapus',
-  //     };
-  //   } catch (error: any) {
-  //     if (error.code === 'P2025') throw new NotFoundException('Akta Kelahiran tidak ditemukan');
-
-  //     console.error('[AktaKelahiranService.remove]', error);
-  //     throw new InternalServerErrorException('Gagal menghapus Akta Kelahiran');
-  //   }
-  // }
-
-  // async deleteSatuBerkas(id: number, fileKey: string, userId?: number) {
-  //   try {
-  //     const record = await this.prisma.aktaKelahiran.findFirstOrThrow({
-  //       where: { id },
-  //     });
-
-  //     if (userId && record.createdById !== userId) {
-  //       throw new ForbiddenException("Anda tidak diizinkan mengubah data ini.");
-  //     }
-
-  //     const files = (record.files as Record<string, string>) || {};
-  //     const pathToDelete = files[fileKey];
-
-  //     if (!pathToDelete) {
-  //       return {
-  //         success: true,
-  //         message: 'File tidak ditemukan atau sudah dihapus',
-  //       };
-  //     }
-
-  //     await deleteFileFromDisk(pathToDelete);
-  //     delete files[fileKey];
-
-  //     await this.prisma.aktaKelahiran.update({
-  //       where: { id: record.id },
-  //       data: {
-  //         files: files as any,
-  //       },
-  //     });
-
-  //     return {
-  //       success: true,
-  //       message: `Berkas '${fileKey}' berhasil dihapus`,
-  //     };
-
-  //   } catch (error) {
-  //     if (error.code === 'P2025') {
-  //       throw new NotFoundException('Akta Kelahiran tidak ditemukan');
-  //     }
-
-  //     if (error instanceof ForbiddenException) {
-  //       throw error;
-  //     }
-
-  //     console.error('[AktaKelahiranService.deleteSatuBerkas]', error);
-  //     throw new InternalServerErrorException('Gagal menghapus berkas');
-  //   }
-  // }
 }

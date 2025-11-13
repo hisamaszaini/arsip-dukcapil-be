@@ -11,7 +11,7 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "username" TEXT NOT NULL,
     "password" TEXT NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'ADMIN',
+    "role" "Role" NOT NULL DEFAULT 'OPERATOR',
     "statusUser" "StatusUser" NOT NULL DEFAULT 'ACTIVE',
     "refreshToken" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -21,16 +21,25 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
+CREATE TABLE "ArsipFile" (
+    "id" SERIAL NOT NULL,
+    "originalName" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "aktaKematianId" INTEGER,
+    "aktaKelahiranId" INTEGER,
+    "suratPerPinId" INTEGER,
+    "suratPerKpnId" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ArsipFile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "AktaKematian" (
     "id" SERIAL NOT NULL,
     "noAkta" TEXT NOT NULL,
-    "nama" TEXT NOT NULL,
-    "fileSuratKematian" TEXT NOT NULL,
-    "fileKk" TEXT NOT NULL,
-    "fileLampiran" TEXT,
-    "fileRegister" TEXT,
-    "fileLaporan" TEXT,
-    "fileSPTJM" TEXT,
+    "noFisik" TEXT NOT NULL,
     "createdById" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -42,13 +51,7 @@ CREATE TABLE "AktaKematian" (
 CREATE TABLE "AktaKelahiran" (
     "id" SERIAL NOT NULL,
     "noAkta" TEXT NOT NULL,
-    "nama" TEXT NOT NULL,
-    "fileSuratKelahiran" TEXT NOT NULL,
-    "fileKk" TEXT NOT NULL,
-    "fileSuratNikah" TEXT NOT NULL,
-    "fileSPTJMKelahiran" TEXT NOT NULL,
-    "fileSPTJMPernikahan" TEXT NOT NULL,
-    "fileLampiran" TEXT,
+    "noFisik" TEXT NOT NULL,
     "createdById" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -60,7 +63,8 @@ CREATE TABLE "AktaKelahiran" (
 CREATE TABLE "SuratKehilangan" (
     "id" SERIAL NOT NULL,
     "nik" TEXT NOT NULL,
-    "nama" TEXT NOT NULL,
+    "tanggal" DATE NOT NULL,
+    "noFisik" TEXT NOT NULL,
     "file" TEXT NOT NULL,
     "createdById" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -73,10 +77,7 @@ CREATE TABLE "SuratKehilangan" (
 CREATE TABLE "SuratPermohonanPindah" (
     "id" SERIAL NOT NULL,
     "nik" TEXT NOT NULL,
-    "nama" TEXT NOT NULL,
-    "filePmhnPindah" TEXT NOT NULL,
-    "fileKk" TEXT NOT NULL,
-    "fileLampiran" TEXT,
+    "noFisik" TEXT NOT NULL,
     "createdById" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -88,10 +89,7 @@ CREATE TABLE "SuratPermohonanPindah" (
 CREATE TABLE "SuratPerubahanKependudukan" (
     "id" SERIAL NOT NULL,
     "nik" TEXT NOT NULL,
-    "nama" TEXT NOT NULL,
-    "filePerubahan" TEXT NOT NULL,
-    "fileKk" TEXT NOT NULL,
-    "fileLampiran" TEXT,
+    "noFisik" TEXT NOT NULL,
     "createdById" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -124,16 +122,10 @@ CREATE INDEX "AktaKelahiran_createdAt_idx" ON "AktaKelahiran"("createdAt");
 CREATE INDEX "AktaKelahiran_createdById_idx" ON "AktaKelahiran"("createdById");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SuratKehilangan_nik_key" ON "SuratKehilangan"("nik");
-
--- CreateIndex
 CREATE INDEX "SuratKehilangan_createdAt_idx" ON "SuratKehilangan"("createdAt");
 
 -- CreateIndex
 CREATE INDEX "SuratKehilangan_createdById_idx" ON "SuratKehilangan"("createdById");
-
--- CreateIndex
-CREATE UNIQUE INDEX "SuratPermohonanPindah_nik_key" ON "SuratPermohonanPindah"("nik");
 
 -- CreateIndex
 CREATE INDEX "SuratPermohonanPindah_createdAt_idx" ON "SuratPermohonanPindah"("createdAt");
@@ -142,13 +134,22 @@ CREATE INDEX "SuratPermohonanPindah_createdAt_idx" ON "SuratPermohonanPindah"("c
 CREATE INDEX "SuratPermohonanPindah_createdById_idx" ON "SuratPermohonanPindah"("createdById");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SuratPerubahanKependudukan_nik_key" ON "SuratPerubahanKependudukan"("nik");
-
--- CreateIndex
 CREATE INDEX "SuratPerubahanKependudukan_createdAt_idx" ON "SuratPerubahanKependudukan"("createdAt");
 
 -- CreateIndex
 CREATE INDEX "SuratPerubahanKependudukan_createdById_idx" ON "SuratPerubahanKependudukan"("createdById");
+
+-- AddForeignKey
+ALTER TABLE "ArsipFile" ADD CONSTRAINT "ArsipFile_aktaKematianId_fkey" FOREIGN KEY ("aktaKematianId") REFERENCES "AktaKematian"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ArsipFile" ADD CONSTRAINT "ArsipFile_aktaKelahiranId_fkey" FOREIGN KEY ("aktaKelahiranId") REFERENCES "AktaKelahiran"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ArsipFile" ADD CONSTRAINT "ArsipFile_suratPerPinId_fkey" FOREIGN KEY ("suratPerPinId") REFERENCES "SuratPermohonanPindah"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ArsipFile" ADD CONSTRAINT "ArsipFile_suratPerKpnId_fkey" FOREIGN KEY ("suratPerKpnId") REFERENCES "SuratPerubahanKependudukan"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AktaKematian" ADD CONSTRAINT "AktaKematian_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

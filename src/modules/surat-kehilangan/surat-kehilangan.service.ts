@@ -1,8 +1,10 @@
-import { ForbiddenException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateDto, FindAllSuratKehilanganDto, UpdateDto } from './dto/surat-kehilangan.dto';
-import { FieldConflictException } from '@/common/utils/fieldConflictException';
-import { deleteFileFromDisk, handleUploadAndUpdate } from '@/common/utils/file';
+import { deleteFileFromDisk, handleUpload, handleUploadAndUpdate } from '@/common/utils/file';
+import { handleCreateError, handleDeleteError, handleFindError, handleUpdateError } from '@/common/utils/handle-prisma-error';
+import { autoDecryptAndClean, encryptValue, hashDeterministic } from '@/common/utils/EncDecHas';
+import { createdResponse, deletedResponse, foundResponse, listResponse, updatedResponse } from '@/common/utils/success-helper';
 
 @Injectable()
 export class SuratKehilanganService {
@@ -10,29 +12,52 @@ export class SuratKehilanganService {
 
   constructor(private prisma: PrismaService) { }
 
-  async create(data: CreateDto, files: { [key: string]: Express.Multer.File[] }, userId: number) {
-    try {
-      const checkNIK = await this.prisma.suratKehilangan.findUnique({
-        where: { nik: data.nik },
-      });
-      if (checkNIK) {
-        throw new FieldConflictException('nik', 'Surat Kehilangan dengan nik tersebut sudah ada di arsip');
-      }
+  async create(data: CreateDto, files: Express.Multer.File[], userId: number) {
+    if (!files?.length) {
+      throw new BadRequestException('Minimal satu file wajib diunggah.');
+    }
 
-      const finalData = {
-        ...data,
-        createdById: userId,
-        file: `${this.UPLOAD_PATH}/${files.file![0].filename}`,
-      };
-      return this.prisma.suratKehilangan.create({ data: finalData });
+    const { nik, ...rest } = data;
+
+    const nikEnc = JSON.stringify(encryptValue(nik));
+    const nikHash = hashDeterministic(nik);
+
+    const uploadedPaths: string[] = [];
+
+    try {
+      const file = files[0];
+
+      const relativePath = await handleUpload({
+        file,
+        uploadSubfolder: this.UPLOAD_PATH,
+      });
+
+      uploadedPaths.push(relativePath);
+
+      // ---------- Simpan ke database ----------
+      const newRecord = await this.prisma.suratKehilangan.create({
+        data: {
+          ...rest,
+          nik,
+          nikEnc,
+          nikHash,
+          file: relativePath,
+          createdById: userId,
+        },
+      });
+
+      return createdResponse(
+        'Surat Kehilangan',
+        autoDecryptAndClean(newRecord),
+      );
 
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
+      // ---------- Rollback file jika gagal ----------
+      for (const p of uploadedPaths) {
+        await deleteFileFromDisk(p).catch(() => { });
       }
 
-      console.error(error);
-      throw new InternalServerErrorException('Gagal menambahkan surat kehilangan baru');
+      handleCreateError(error, 'Surat Kehilangan');
     }
   }
 
@@ -66,17 +91,16 @@ export class SuratKehilanganService {
       }),
     ]);
 
-    return {
-      success: true,
-      message: 'Daftar Surat Kehilangan berhasil diambil',
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-      data,
+    const cleaned = autoDecryptAndClean(data);
+    const meta = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     };
+
+    // --- Kembalikan response standar ---
+    return listResponse('Surat Kehilangan', cleaned, meta);
   }
 
   async findOne(id: number, userId?: number) {
@@ -86,16 +110,11 @@ export class SuratKehilanganService {
       });
 
       if (userId && data.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan mengambil surat kehilangan ini.");
+      const cleaned = autoDecryptAndClean(data);
 
-      return {
-        message: 'Surat kehilangan berhasil diambil',
-        data: data,
-      }
+      return foundResponse('Surat Kehilangan', cleaned);
     } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('Surat Kehilangan tidak ditemukan');
-      }
-      throw new InternalServerErrorException('Gagal mengambil data akte kehilangan');
+      handleFindError(error, 'Surat Kehilangan');
     }
   }
 
@@ -106,35 +125,66 @@ export class SuratKehilanganService {
     userId?: number,
   ) {
     try {
-      const record = await this.prisma.suratKehilangan.findFirstOrThrow({ where: { id } });
-      if (userId && record.createdById !== userId) throw new ForbiddenException('Anda tidak diizinkan memperbarui akta ini.');
+      // ---------- Ambil record ----------
+      const record = await this.prisma.suratKehilangan.findFirstOrThrow({
+        where: { id },
+      });
 
+      // ---------- Cek otorisasi jika userId disediakan ----------
+      if (userId && record.createdById !== userId) {
+        throw new ForbiddenException('Anda tidak diizinkan memperbarui surat ini.');
+      }
+
+      // Cek apakah nik berubah
+      let nikEnc = record.nikEnc;
+      let nikHash = record.nikHash;
+      let newNik = record.nik;
+
+      if (data.nik && data.nik !== record.nik) {
+        // Nilai berubah → generate baru
+        newNik = data.nik;
+        nikEnc = JSON.stringify(encryptValue(data.nik));
+        nikHash = hashDeterministic(data.nik);
+      }
+
+      // ---------- Tentukan subfolder ----------
       const uploadSubfolder = this.UPLOAD_PATH;
 
+      // ---------- Siapkan data update ----------
+      let newFilePath = record.file;
+
+      // Jika ada file baru → upload + hapus file lama
+      if (files.file?.[0]) {
+        newFilePath = await handleUploadAndUpdate({
+          file: files.file[0],
+          oldFilePath: record.file,
+          uploadSubfolder,
+        });
+      }
+
       const updatedData = {
-        ...data,
-        file: files.file?.[0]
-          ? await handleUploadAndUpdate({
-            file: files.file[0],
-            oldFilePath: record.file,
-            uploadSubfolder,
-          })
-          : record.file,
+        nik: newNik ?? record.nik,
+        nikEnc: nikEnc,
+        nikHash: nikHash,
+        noFisik: data.noFisik ?? record.noFisik,
+        tanggal: data.tanggal,
+        file: newFilePath,
       };
 
+      // ---------- 5. Simpan dengan transaction ----------
       return this.prisma.$transaction(async (tx) => {
         const updatedRecord = await tx.suratKehilangan.update({
           where: { id },
           data: updatedData,
         });
-        return updatedRecord;
-      });
-    } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('Surat kehilangan tidak ditemukan');
-      }
 
-      throw new InternalServerErrorException('Gagal memperbarui data surat kehilangan');
+        const cleaned = autoDecryptAndClean(updatedRecord);
+
+        return updatedResponse('Surat Kehilangan', cleaned);
+      });
+
+    } catch (error) {
+      handleUpdateError(error, 'Surat Kehilangan');
     }
   }
 
@@ -150,17 +200,9 @@ export class SuratKehilanganService {
         deleteFileFromDisk(record.file),
       ]);
 
-      return {
-        success: true,
-        message: 'Surat Kehilangan berhasil dihapus',
-      };
+      return deletedResponse('Surat Kehilangan');
     } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('Surat kehilangan tidak ditemukan');
-      }
-
-      console.error(error);
-      throw new InternalServerErrorException('Gagal menghapus Surat Kehilangan');
+      handleDeleteError(error, 'Surat Kehilangan');
     }
   }
 }

@@ -1,13 +1,11 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query, Request } from '@nestjs/common';
 import { AktaKelahiranService } from './akta-kelahiran.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { CreateDto, createSchema, DeleteBerkasDto, deleteBerkasSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kelahiran.dto';
-import { ZodValidationPipe } from 'nestjs-zod';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { CreateDto, createSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kelahiran.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtPayload } from '../auth/auth.types';
+import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
 
 @UseGuards(JwtAuthGuard)
 @Controller('akta-kelahiran')
@@ -15,99 +13,44 @@ export class AktaKelahiranController {
   constructor(private readonly aktaKelahiranService: AktaKelahiranService) { }
 
   @Post()
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'fileSuratKelahiran', maxCount: 1 },
-        { name: 'fileKk', maxCount: 1 },
-        { name: 'fileSuratNikah', maxCount: 1 },
-        { name: 'fileSPTJMKelahiran', maxCount: 1 },
-        { name: 'fileSPTJMPernikahan', maxCount: 1 },
-        { name: 'fileLampiran', maxCount: 1 }, // opsional
-      ],
-      {
-        storage: diskStorage({
-          destination: './uploads/akta-kelahiran',
-          filename: (req, file, cb) => {
-            if (!file) return cb(new BadRequestException('File tidak ditemukan'), '');
-            const ext = path.extname(file.originalname);
-            cb(null, `${uuidv4()}${ext}`);
-          },
-        }),
-        fileFilter: (req, file, cb) => {
-          if (!file) return cb(new BadRequestException('File tidak ditemukan'), false);
-          // Hanya izinkan JPG/JPEG
-          if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
-            return cb(new BadRequestException('Hanya file JPG/JPEG yang diizinkan'), false);
-          }
-          cb(null, true);
-        },
-        limits: { fileSize: 2 * 1024 * 1024 }, // max 2MB
-      }
-    ),
+    FilesInterceptor('files', 10, {
+      storage: memoryStorage(),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+          return cb(
+            new BadRequestException({
+              message: 'Hanya file JPG/JPEG yang diizinkan',
+              errors: { [file.fieldname]: `File ${file.originalname} tidak valid` },
+            }),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+      limits: {
+        fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024,
+      },
+    }),
   )
-  create(
-    @Body(new ZodValidationPipe(createSchema)) createAktaKelahiranDto: CreateDto,
-    @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
-    @Request() req: { user: JwtPayload }
+  async create(
+    @Body(new ZodValidationPipe(createSchema)) data: CreateDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Request() req: { user: JwtPayload },
   ) {
-    const requiredFiles = [
-      'fileSuratKelahiran',
-      'fileKk',
-      'fileSuratNikah',
-      'fileSPTJMKelahiran',
-      'fileSPTJMPernikahan',
-    ];
-
-    for (const key of requiredFiles) {
-      if (!files[key] || files[key].length === 0) {
-        throw new BadRequestException(`File ${key} wajib diunggah`);
-      }
+    if (!files || files.length === 0) {
+      throw new BadRequestException(
+        {
+          errors: [{ field: 'files', message: 'Minimal satu file wajib diunggah.' }],
+        }
+      );
     }
 
     const userId = req.user.userId;
-    return this.aktaKelahiranService.create(createAktaKelahiranDto, files, userId);
-  }
 
-  // @Post()
-  // @HttpCode(HttpStatus.OK)
-  // @UseInterceptors(
-  //   FileFieldsInterceptor(
-  //     [
-  //       { name: 'file1', maxCount: 1 },
-  //       { name: 'file2', maxCount: 1 },
-  //       { name: 'file3', maxCount: 1 },
-  //       { name: 'file4', maxCount: 1 },
-  //       { name: 'file5', maxCount: 1 },
-  //       { name: 'file6', maxCount: 1 },
-  //     ],
-  //     {
-  //       storage: diskStorage({
-  //         destination: './uploads/akta-kelahiran',
-  //         filename: (req, file, cb) => {
-  //           const ext = path.extname(file.originalname);
-  //           cb(null, `${uuidv4()}${ext}`);
-  //         },
-  //       }),
-  //       fileFilter: (req, file, cb) => {
-  //         if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
-  //           return cb(new BadRequestException('Hanya file JPG/JPEG yang diizinkan'), false);
-  //         }
-  //         cb(null, true);
-  //       },
-  //       limits: { fileSize: 2 * 1024 * 1024 }, // max 2MB
-  //     },
-  //   ),
-  // )
-  // create(
-  //   @Body(new ZodValidationPipe(createSchema)) createAktaKelahiranDto: any,
-  //   @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
-  //   @Request() req: { user: JwtPayload },
-  // ) {
-  //   const userId = req.user.userId;
-  //   return this.aktaKelahiranService.create(createAktaKelahiranDto, files, userId);
-  // }
+    return this.aktaKelahiranService.create(data, files, userId);
+  }
 
   @Get()
   @UsePipes(new ZodValidationPipe(findAllAktaSchema))
@@ -136,53 +79,45 @@ export class AktaKelahiranController {
 
   @Patch(':id')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'fileSuratKelahiran', maxCount: 1 },
-        { name: 'fileKk', maxCount: 1 },
-        { name: 'fileSuratNikah', maxCount: 1 },
-        { name: 'fileSPTJMKelahiran', maxCount: 1 },
-        { name: 'fileSPTJMPernikahan', maxCount: 1 },
-        { name: 'fileLampiran', maxCount: 1 },
-      ],
-      {
-        limits: { fileSize: 2 * 1024 * 1024 },
-        fileFilter: (req, file, cb) => {
-          if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
-            return cb(new BadRequestException('Hanya file JPG/JPEG yang diizinkan'), false);
-          }
-          cb(null, true);
-        },
+    FilesInterceptor('files', 10, {
+      storage: memoryStorage(),
+      limits: { fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+          return cb(new BadRequestException({
+            message: 'Hanya file JPG/JPEG yang diizinkan',
+            errors: { [file.fieldname]: `File ${file.originalname} tidak valid` },
+          }), false);
+        }
+        cb(null, true);
       },
-    ),
+    }),
   )
   @HttpCode(HttpStatus.OK)
   async update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateSchema)) body: UpdateDto,
-    @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
+    @UploadedFiles() files: Express.Multer.File[],
     @Request() req: { user: JwtPayload },
   ) {
+    const aktaId = Number(id);
     const userId = req.user.userId;
-    if (req.user.role !== "ADMIN") {
-      return this.aktaKelahiranService.update(+id, body, files, userId);
-    } else {
-      return this.aktaKelahiranService.update(+id, body, files);
-    }
+    const isAdmin = req.user.role === 'ADMIN';
+
+    return this.aktaKelahiranService.update(aktaId, body, files, userId, isAdmin);
   }
 
-  // @Delete(':id/berkas')
-  // @HttpCode(HttpStatus.OK)
-  // async deleteBerkas(
-  //   @Param('id') id: string,
-  //   @Body(new ZodValidationPipe(deleteBerkasSchema)) body: DeleteBerkasDto,
-  //   @Request() req: { user: JwtPayload },
-  // ) {
-  //   if (req.user.role !== "ADMIN") {
-  //     return this.aktaKelahiranService.deleteSatuBerkas(+id, body.fileKey, req.user.userId);
-  //   }
-  //   return this.aktaKelahiranService.deleteSatuBerkas(+id, body.fileKey);
-  // }
+  @Delete('file/:id')
+  @HttpCode(HttpStatus.OK)
+  removeFile(
+    @Param('id') id: string,
+    @Request() req: { user: JwtPayload },
+  ) {
+    if (req.user.role !== "ADMIN") {
+      return this.aktaKelahiranService.removeFile(+id, req.user.userId);
+    }
+    return this.aktaKelahiranService.removeFile(+id);
+  }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
@@ -190,11 +125,9 @@ export class AktaKelahiranController {
     @Param('id') id: string,
     @Request() req: { user: JwtPayload },
   ) {
-    const userId = req.user.userId;
     if (req.user.role !== "ADMIN") {
-      return this.aktaKelahiranService.remove(+id, userId);
-    } else {
-      return this.aktaKelahiranService.remove(+id);
+      return this.aktaKelahiranService.remove(+id, req.user.userId);
     }
+    return this.aktaKelahiranService.remove(+id);
   }
 }
