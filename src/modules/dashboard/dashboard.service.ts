@@ -25,6 +25,8 @@ export class DashboardService {
                 lastKelahiran,
                 lastKematian,
                 lastKehilangan,
+                lastPindah,
+                lastPerubahan,
 
                 // Monthly raw records
                 kelahiranRecords,
@@ -33,6 +35,8 @@ export class DashboardService {
                 pindahRecords,
                 perubahanRecords
             ] = await Promise.all([
+
+                // Counts
                 this.prisma.user.count(),
                 this.prisma.aktaKelahiran.count(),
                 this.prisma.aktaKematian.count(),
@@ -40,19 +44,58 @@ export class DashboardService {
                 this.prisma.suratPermohonanPindah.count(),
                 this.prisma.suratPerubahanKependudukan.count(),
 
-                this.prisma.aktaKelahiran.findMany({ take: LIMIT, orderBy: { createdAt: 'desc' }, select: { id: true, noAkta: true, createdAt: true } }),
-                this.prisma.aktaKematian.findMany({ take: LIMIT, orderBy: { createdAt: 'desc' }, select: { id: true, createdAt: true } }),
-                this.prisma.suratKehilangan.findMany({ take: LIMIT, orderBy: { createdAt: 'desc' }, select: { id: true, createdAt: true } }),
+                // Recent 5 records (FULL 5 SERVICES)
+                this.prisma.aktaKelahiran.findMany({
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, noAkta: true, createdAt: true }
+                }),
+                this.prisma.aktaKematian.findMany({
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, noAkta: true, createdAt: true }
+                }),
+                this.prisma.suratKehilangan.findMany({
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, nik: true, createdAt: true }
+                }),
+                this.prisma.suratPermohonanPindah.findMany({
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, nik: true, createdAt: true }
+                }),
+                this.prisma.suratPerubahanKependudukan.findMany({
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, nik: true, createdAt: true }
+                }),
 
-                this.prisma.aktaKelahiran.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
-                this.prisma.aktaKematian.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
-                this.prisma.suratKehilangan.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
-                this.prisma.suratPermohonanPindah.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
-                this.prisma.suratPerubahanKependudukan.findMany({ where: { createdAt: { gte: sixMonthsAgo } }, select: { createdAt: true } }),
+                // MONTHLY 6 months raw records
+                this.prisma.aktaKelahiran.findMany({
+                    where: { createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
+                }),
+                this.prisma.aktaKematian.findMany({
+                    where: { createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
+                }),
+                this.prisma.suratKehilangan.findMany({
+                    where: { createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
+                }),
+                this.prisma.suratPermohonanPindah.findMany({
+                    where: { createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
+                }),
+                this.prisma.suratPerubahanKependudukan.findMany({
+                    where: { createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
+                })
             ]);
 
             // ===========================================
-            // Stats
+            // Stats (5 layanan)
             // ===========================================
             const stats = {
                 totalUser: userCount,
@@ -64,12 +107,14 @@ export class DashboardService {
             };
 
             // ===========================================
-            // Recent activities
+            // Recent Activities (5 layanan)
             // ===========================================
             const allActivities = [
-                ...lastKelahiran.map(r => ({ ...r, jenisLayanan: 'Akta Kelahiran' })),
-                ...lastKematian.map(r => ({ ...r, jenisLayanan: 'Akta Kematian' })),
-                ...lastKehilangan.map(r => ({ ...r, jenisLayanan: 'Surat Kehilangan' })),
+                ...lastKelahiran.map(r => ({ ...r, jenisLayanan: "Akta Kelahiran" })),
+                ...lastKematian.map(r => ({ ...r, jenisLayanan: "Akta Kematian" })),
+                ...lastKehilangan.map(r => ({ ...r, jenisLayanan: "Surat Kehilangan" })),
+                ...lastPindah.map(r => ({ ...r, jenisLayanan: "Surat Permohonan Pindah" })),
+                ...lastPerubahan.map(r => ({ ...r, jenisLayanan: "Surat Perubahan Kependudukan" })),
             ];
 
             const recentActivities = allActivities
@@ -77,7 +122,7 @@ export class DashboardService {
                 .slice(0, LIMIT);
 
             // ===========================================
-            // Monthly Chart (ALL services)
+            // Monthly Chart
             // ===========================================
             const monthNames = [
                 "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -90,7 +135,7 @@ export class DashboardService {
                 const d = new Date();
                 d.setMonth(d.getMonth() - i);
 
-                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
                 monthlyMap[key] = {
                     month: monthNames[d.getMonth()],
@@ -104,7 +149,7 @@ export class DashboardService {
 
             const addMonthly = (records, field) => {
                 records.forEach(r => {
-                    const key = `${r.createdAt.getFullYear()}-${String(r.createdAt.getMonth() + 1).padStart(2, '0')}`;
+                    const key = `${r.createdAt.getFullYear()}-${String(r.createdAt.getMonth() + 1).padStart(2, "0")}`;
                     if (monthlyMap[key]) monthlyMap[key][field]++;
                 });
             };
@@ -119,7 +164,7 @@ export class DashboardService {
 
             // ===========================================
             return {
-                message: 'Data dashboard berhasil diambil',
+                message: "Data dashboard berhasil diambil",
                 data: {
                     stats,
                     recentActivities,
@@ -134,112 +179,170 @@ export class DashboardService {
 
     async getDashboardDataOperator(id: number) {
         try {
-            const activityLimit = 5;
+            const LIMIT = 5;
             const sixMonthsAgo = new Date();
             sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
             const [
-                countAktaKelahiran,
-                countAktaKematian,
-                countSuratKehilangan,
+                // Counts (5 layanan)
+                countKelahiran,
+                countKematian,
+                countKehilangan,
+                countPindah,
+                countPerubahan,
 
-                latestAktaKelahiran,
-                latestAktaKematian,
-                latestSuratKehilangan,
+                // Recent (5 layanan)
+                lastKelahiran,
+                lastKematian,
+                lastKehilangan,
+                lastPindah,
+                lastPerubahan,
 
+                // Monthly raw records (5 layanan)
                 kelahiranRecords,
                 kematianRecords,
                 kehilanganRecords,
-
+                pindahRecords,
+                perubahanRecords
             ] = await Promise.all([
-                // Counts
                 this.prisma.aktaKelahiran.count({ where: { createdById: id } }),
                 this.prisma.aktaKematian.count({ where: { createdById: id } }),
                 this.prisma.suratKehilangan.count({ where: { createdById: id } }),
+                this.prisma.suratPermohonanPindah.count({ where: { createdById: id } }),
+                this.prisma.suratPerubahanKependudukan.count({ where: { createdById: id } }),
 
-                // Aktivitas terbaru
-                this.prisma.aktaKelahiran.findMany({ where: { createdById: id }, take: activityLimit, orderBy: { createdAt: 'desc' }, select: { id: true, noAkta: true, createdAt: true } }),
-                this.prisma.aktaKematian.findMany({ where: { createdById: id }, take: activityLimit, orderBy: { createdAt: 'desc' }, select: { id: true, createdAt: true } }),
-                this.prisma.suratKehilangan.findMany({ where: { createdById: id }, take: activityLimit, orderBy: { createdAt: 'desc' }, select: { id: true, createdAt: true } }),
+                this.prisma.aktaKelahiran.findMany({
+                    where: { createdById: id },
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, noAkta: true, createdAt: true }
+                }),
+                this.prisma.aktaKematian.findMany({
+                    where: { createdById: id },
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, noAkta: true, createdAt: true }
+                }),
+                this.prisma.suratKehilangan.findMany({
+                    where: { createdById: id },
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, nik: true, createdAt: true }
+                }),
+                this.prisma.suratPermohonanPindah.findMany({
+                    where: { createdById: id },
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, nik: true, createdAt: true }
+                }),
+                this.prisma.suratPerubahanKependudukan.findMany({
+                    where: { createdById: id },
+                    take: LIMIT,
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true, nik: true, createdAt: true }
+                }),
 
-                // Data untuk grafik
-                this.prisma.aktaKelahiran.groupBy({
-                    by: ['createdAt'],
-                    _count: { id: true },
-                    where: { createdAt: { gte: sixMonthsAgo }, createdById: id },
+                this.prisma.aktaKelahiran.findMany({
+                    where: { createdById: id, createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
                 }),
-                this.prisma.aktaKematian.groupBy({
-                    by: ['createdAt'],
-                    _count: { id: true },
-                    where: { createdAt: { gte: sixMonthsAgo }, createdById: id },
+                this.prisma.aktaKematian.findMany({
+                    where: { createdById: id, createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
                 }),
-                this.prisma.suratKehilangan.groupBy({
-                    by: ['createdAt'],
-                    _count: { id: true },
-                    where: { createdAt: { gte: sixMonthsAgo }, createdById: id },
+                this.prisma.suratKehilangan.findMany({
+                    where: { createdById: id, createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
+                }),
+                this.prisma.suratPermohonanPindah.findMany({
+                    where: { createdById: id, createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
+                }),
+                this.prisma.suratPerubahanKependudukan.findMany({
+                    where: { createdById: id, createdAt: { gte: sixMonthsAgo } },
+                    select: { createdAt: true }
                 })
             ]);
 
+            // ============================
+            // Stats
+            // ============================
             const stats = {
-                totalAktaKelahiran: countAktaKelahiran,
-                totalAktaKematian: countAktaKematian,
-                totalSuratKehilangan: countSuratKehilangan,
+                totalUser: 0, // Operator tidak butuh user count
+                totalAktaKelahiran: countKelahiran,
+                totalAktaKematian: countKematian,
+                totalSuratKehilangan: countKehilangan,
+                totalSuratPermohonanPindah: countPindah,
+                totalSuratPerubahanKependudukan: countPerubahan
             };
 
+            // ============================
+            // Recent Activities (5 layanan)
+            // ============================
             const allActivities = [
-                ...latestAktaKelahiran.map(item => ({ ...item, jenisLayanan: 'Akta Kelahiran' })),
-                ...latestAktaKematian.map(item => ({ ...item, jenisLayanan: 'Akta Kematian' })),
-                ...latestSuratKehilangan.map(item => ({ ...item, jenisLayanan: 'Surat Kehilangan' })),
+                ...lastKelahiran.map(r => ({ ...r, jenisLayanan: "Akta Kelahiran" })),
+                ...lastKematian.map(r => ({ ...r, jenisLayanan: "Akta Kematian" })),
+                ...lastKehilangan.map(r => ({ ...r, jenisLayanan: "Surat Kehilangan" })),
+                ...lastPindah.map(r => ({ ...r, jenisLayanan: "Surat Permohonan Pindah" })),
+                ...lastPerubahan.map(r => ({ ...r, jenisLayanan: "Perubahan Kependudukan" }))
             ];
 
             const recentActivities = allActivities
                 .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-                .slice(0, activityLimit);
+                .slice(0, LIMIT);
 
-            const monthlyCounts: { [key: string]: { month: string; aktaKelahiran: number; aktaKematian: number; suratKehilangan: number } } = {};
-            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            // ============================
+            // Monthly Chart
+            // ============================
+            const monthNames = [
+                "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+            ];
+
+            const monthlyMap: Record<string, any> = {};
 
             for (let i = 0; i <= 6; i++) {
                 const d = new Date();
                 d.setMonth(d.getMonth() - i);
-                const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                if (!monthlyCounts[monthKey]) {
-                    monthlyCounts[monthKey] = {
-                        month: monthNames[d.getMonth()],
-                        aktaKelahiran: 0,
-                        aktaKematian: 0,
-                        suratKehilangan: 0,
-                    };
-                }
+
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+                monthlyMap[key] = {
+                    month: monthNames[d.getMonth()],
+                    aktaKelahiran: 0,
+                    aktaKematian: 0,
+                    suratKehilangan: 0,
+                    suratPermohonanPindah: 0,
+                    suratPerubahanKependudukan: 0
+                };
             }
 
-            kelahiranRecords.forEach(rec => {
-                const monthKey = `${rec.createdAt.getFullYear()}-${String(rec.createdAt.getMonth() + 1).padStart(2, '0')}`;
-                if (monthlyCounts[monthKey]) monthlyCounts[monthKey].aktaKelahiran++;
-            });
-            kematianRecords.forEach(rec => {
-                const monthKey = `${rec.createdAt.getFullYear()}-${String(rec.createdAt.getMonth() + 1).padStart(2, '0')}`;
-                if (monthlyCounts[monthKey]) monthlyCounts[monthKey].aktaKematian++;
-            });
-            kehilanganRecords.forEach(rec => {
-                const monthKey = `${rec.createdAt.getFullYear()}-${String(rec.createdAt.getMonth() + 1).padStart(2, '0')}`;
-                if (monthlyCounts[monthKey]) monthlyCounts[monthKey].suratKehilangan++;
-            });
+            const addMonthly = (records, field) => {
+                records.forEach(r => {
+                    const key = `${r.createdAt.getFullYear()}-${String(r.createdAt.getMonth() + 1).padStart(2, "0")}`;
+                    if (monthlyMap[key]) monthlyMap[key][field]++;
+                });
+            };
 
-            const monthlyStats = Object.values(monthlyCounts).reverse();
+            addMonthly(kelahiranRecords, "aktaKelahiran");
+            addMonthly(kematianRecords, "aktaKematian");
+            addMonthly(kehilanganRecords, "suratKehilangan");
+            addMonthly(pindahRecords, "suratPermohonanPindah");
+            addMonthly(perubahanRecords, "suratPerubahanKependudukan");
+
+            const monthlyStats = Object.values(monthlyMap).reverse();
 
             return {
-                message: 'Data dashboard berhasil diambil',
+                message: "Data dashboard operator berhasil diambil",
                 data: {
                     stats,
                     recentActivities,
-                    monthlyStats,
-                },
+                    monthlyStats
+                }
             };
-        } catch (error) {
-            console.error('Gagal mengambil data dashboard:', error);
-            throw new InternalServerErrorException('Gagal mengambil data dashboard');
-        }
 
+        } catch (error) {
+            handleFindError(error, "Dashboard Operator");
+        }
     }
 }
