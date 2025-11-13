@@ -25,16 +25,34 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
       // Jika response memiliki field errors field-specific
       if (excResp?.errors) {
+
+        // --- Tambahan: normalisasi array -> object tanpa mengubah komentarmu ---
+        let normalizedErrors: Record<string, string> = {};
+
+        if (Array.isArray(excResp.errors)) {
+          // format array = [{ field, message }]
+          excResp.errors.forEach((e: any) => {
+            if (e?.field && e?.message) {
+              normalizedErrors[e.field] = e.message;
+            }
+          });
+        } else {
+          // jika sudah berbentuk object
+          normalizedErrors = excResp.errors;
+        }
+        // --- END tambahan ---
+
         body = {
           success: false,
           message: excResp.message || 'Validasi gagal',
-          errors: excResp.errors,
+          errors: normalizedErrors,
         };
       } else {
         // Global error
         body = {
           success: false,
-          message: typeof excResp === 'string' ? excResp : excResp.message || 'Terjadi error',
+          message:
+            typeof excResp === 'string' ? excResp : excResp.message || 'Terjadi error',
           errors: null,
         };
       }

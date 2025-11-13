@@ -2,7 +2,6 @@ import { BadRequestException, InternalServerErrorException } from '@nestjs/commo
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ZodSchema } from 'zod';
 
 // Constants
 const UPLOAD_PATH = path.resolve(process.cwd(), 'uploads');
@@ -72,24 +71,4 @@ export async function handleUploadAndUpdate(params: {
   }
 
   return relativePath;
-}
-
-// Validate and inject file path into Zod schema
-export function validateAndInjectFilePath<T>(
-  schema: ZodSchema<T>,
-  rawData: any,
-  filePath: string
-): T {
-  const enriched = {
-    ...rawData,
-    filePath,
-  };
-
-  const parsed = schema.safeParse(enriched);
-
-  if (!parsed.success) {
-    throw new BadRequestException(parsed.error.format());
-  }
-
-  return parsed.data;
 }
