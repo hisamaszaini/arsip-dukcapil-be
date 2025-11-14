@@ -72,7 +72,7 @@ export class AktaKelahiranService {
 
     if (search) {
       where.OR = [
-        { nama: { contains: search, mode: 'insensitive' } },
+        // { nama: { contains: search, mode: 'insensitive' } },
         { nik: { contains: search, mode: 'insensitive' } },
       ];
     }
