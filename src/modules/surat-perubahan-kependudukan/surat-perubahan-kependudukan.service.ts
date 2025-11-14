@@ -72,7 +72,7 @@ export class SuratPerubahanKependudukanService {
 
     if (search) {
       where.OR = [
-        // { nama: { contains: search, mode: 'insensitive' } },
+        { noFisik: { contains: search, mode: 'insensitive' } },
         { nik: { contains: search, mode: 'insensitive' } },
       ];
     }

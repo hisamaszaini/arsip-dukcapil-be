@@ -72,7 +72,7 @@ export class SuratPermohonanPindahService {
 
     if (search) {
       where.OR = [
-        // { nama: { contains: search, mode: 'insensitive' } },
+        { noFisik: { contains: search, mode: 'insensitive' } },
         { nik: { contains: search, mode: 'insensitive' } },
       ];
     }

@@ -72,8 +72,8 @@ export class AktaKematianService {
 
     if (search) {
       where.OR = [
-        // { nama: { contains: search, mode: 'insensitive' } },
-        { nik: { contains: search, mode: 'insensitive' } },
+        { noFisik: { contains: search, mode: 'insensitive' } },
+        { noAkta: { contains: search, mode: 'insensitive' } },
       ];
     }
 
