@@ -41,7 +41,7 @@ export class SuratKehilanganService {
           nik,
           nikEnc,
           nikHash,
-          file: relativePath,
+          files: relativePath,
           createdById: userId,
         },
       });
@@ -151,13 +151,13 @@ export class SuratKehilanganService {
       const uploadSubfolder = this.UPLOAD_PATH;
 
       // ---------- Siapkan data update ----------
-      let newFilePath = record.file;
+      let newFilePath = record.files;
 
       // Jika ada file baru → upload + hapus file lama
-      if (files.file?.[0]) {
+      if (files.files?.[0]) {
         newFilePath = await handleUploadAndUpdate({
-          file: files.file[0],
-          oldFilePath: record.file,
+          file: files.files[0],
+          oldFilePath: record.files,
           uploadSubfolder,
         });
       }
@@ -168,7 +168,7 @@ export class SuratKehilanganService {
         nikHash: nikHash,
         noFisik: data.noFisik ?? record.noFisik,
         tanggal: data.tanggal,
-        file: newFilePath,
+        files: newFilePath,
       };
 
       // ---------- 5. Simpan dengan transaction ----------
@@ -197,7 +197,7 @@ export class SuratKehilanganService {
       await this.prisma.suratKehilangan.delete({ where: { id } });
 
       await Promise.all([
-        deleteFileFromDisk(record.file),
+        deleteFileFromDisk(record.files),
       ]);
 
       return deletedResponse('Surat Kehilangan');

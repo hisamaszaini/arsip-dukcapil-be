@@ -4,9 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { CreateDto, createSchema, FindAllSuratKehilanganDto, findAllSuratKehilanganSchema, UpdateDto, updateSchema } from './dto/surat-kehilangan.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage, memoryStorage } from 'multer';
-import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { memoryStorage } from 'multer';
 import { JwtPayload } from '../auth/auth.types';
 
 @UseGuards(JwtAuthGuard)
@@ -17,14 +15,15 @@ export class SuratKehilanganController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FilesInterceptor('file', 1, {
+    FilesInterceptor('files', 1, {
       storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
           return cb(
             new BadRequestException({
-              message: 'Hanya file JPG/JPEG yang diizinkan',
-              errors: { [file.fieldname]: `File ${file.originalname} tidak valid` },
+              success: false,
+              message: 'Format file tidak valid',
+              errors: { [file.fieldname]: `File ${file.originalname} harus JPG/JPEG` },
             }),
             false,
           );
@@ -38,20 +37,17 @@ export class SuratKehilanganController {
   )
   async create(
     @Body(new ZodValidationPipe(createSchema)) data: CreateDto,
-    @UploadedFiles() file: Express.Multer.File[],
+    @UploadedFiles() files: Express.Multer.File[],
     @Request() req: { user: JwtPayload },
   ) {
-    if (!file || file.length === 0) {
-      throw new BadRequestException(
-        {
-          errors: [{ field: 'file', message: 'Minimal satu file wajib diunggah.' }],
-        }
-      );
+    if (!files || files.length === 0) {
+      throw new BadRequestException({
+        success: false,
+        errors: { files: 'Minimal satu file wajib diunggah.' },
+      });
     }
 
-    const userId = req.user.userId;
-
-    return this.suratKehilanganService.create(data, file, userId);
+    return this.suratKehilanganService.create(data, files, req.user.userId);
   }
 
   @Get()
@@ -84,7 +80,7 @@ export class SuratKehilanganController {
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: 'file', maxCount: 1 },
+        { name: 'files', maxCount: 1 },
       ],
       {
         limits: { fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024 }, fileFilter: (req, file, cb) => {

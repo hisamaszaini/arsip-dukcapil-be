@@ -100,7 +100,7 @@ model SuratKehilangan {
   nikHash     String?  @unique
   tanggal     DateTime @db.Date
   noFisik     String
-  file        String
+  files       String
   createdById Int?
   createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
