@@ -94,6 +94,8 @@ model ArsipSemua {
   createdById Int?
   createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
   arsipFiles  ArsipFile[]
+  isSync      Boolean     @default(false)
+  syncAt      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

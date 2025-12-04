@@ -16,6 +16,7 @@ import {
   Query,
   Request,
   Res,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -143,7 +144,15 @@ export class ArsipController {
   async serveFile(@Param('id') id: string, @Request() req: any, @Res() res: any) {
     // Optional: Add guard if needed, but usually images are public or protected by cookie
     // For now, we assume protected by Guard at Controller level
+    // For now, we assume protected by Guard at Controller level
     return this.arsipService.serveFile(+id, res);
+  }
+
+  @Patch(':id/sync')
+  @Roles('ADMIN', 'OPERATOR')
+  @HttpCode(HttpStatus.OK)
+  toggleSync(@Param('id', ParseIntPipe) id: number) {
+    return this.arsipService.toggleSync(id);
   }
 
   @Patch(':id')

@@ -13,7 +13,14 @@
 
 ---
 
-# 🚀 Instalasi & Menjalankan Proyek
+# 🚀 Panduan Instalasi & Setup
+
+## 📋 Prasyarat
+
+Pastikan Anda telah menginstal:
+- [Node.js](https://nodejs.org/) (v18 atau lebih baru)
+- [PostgreSQL](https://www.postgresql.org/) (Database)
+- [Git](https://git-scm.com/)
 
 ## 1️⃣ Clone Repository
 
@@ -28,61 +35,140 @@ cd arsip-dukcapil-be
 npm install
 ```
 
-## 3️⃣ Copy & Sesuaikan Environment
+## 3️⃣ Konfigurasi Environment (.env)
+
+Salin file contoh `.env.example` ke `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit nilai-nilai penting di file `.env` sesuai kebutuhan (database, JWT secret, file size, enkripsi, dll).
+Sesuaikan konfigurasi di dalam file `.env`:
 
-## 4️⃣ Jalankan Seeder (Data Awal)
+```ini
+# Database Configuration
+DATABASE_URL="postgresql://user:password@localhost:5432/dbname?schema=public"
 
-Script seeder berada pada:
+# JWT Configuration (Ganti dengan string acak yang aman)
+JWT_ACCESS_SECRET="rahasia_access_token"
+JWT_REFRESH_SECRET="rahasia_refresh_token"
+JWT_ACCESS_EXPIRES="15m"
+JWT_REFRESH_EXPIRES="7d"
 
-```json
-"prisma:seed": "ts-node prisma/seed.ts"
+# Server Port
+PORT=3334
+
+# File Upload Limit (in MB)
+MAX_FILE_SIZE_MB=5
+
+# Encryption Settings (Optional)
+MODE_ENCRYPT=True
+# Generate keys using: openssl rand -hex 32
+AES_KEY="32_byte_hex_string"
+HMAC_KEY="32_byte_hex_string"
 ```
 
-Jalankan:
+> **Catatan:** Jika `MODE_ENCRYPT=True`, pastikan `AES_KEY` dan `HMAC_KEY` diisi dengan string hex 32-byte yang valid.
+
+## 4️⃣ Setup Database & Seeder
+
+Jalankan migrasi database untuk membuat tabel:
+
+```bash
+npx prisma migrate dev --name init
+```
+
+### 🌱 Database Seeder (Data Awal)
+
+Untuk mengisi database dengan data awal (seperti akun Admin), jalankan perintah berikut:
 
 ```bash
 npm run prisma:seed
 ```
 
-## 5️⃣ Build Project (opsional untuk production)
+**Akun Admin Default:**
+- **Email:** `admin@example.com`
+- **Password:** `kopikita123`
+- **Role:** `ADMIN`
+
+> ⚠️ **PENTING:** Segera ganti password admin setelah login pertama kali!
+
+## 5️⃣ Setup Permission Folder (Linux Server) 🐧
+
+Jika Anda men-deploy aplikasi ini di server Linux (Ubuntu/Debian/CentOS), Anda **wajib** mengatur permission untuk folder `uploads` agar aplikasi dapat menyimpan file arsip.
+
+Jalankan perintah berikut di terminal server:
 
 ```bash
-npm run build
+# Pastikan folder uploads ada
+mkdir -p uploads
+
+# Berikan hak akses write ke folder uploads
+# Opsi 1: Ubah owner ke user yang menjalankan aplikasi (Direkomendasikan)
+# Ganti 'ubuntu' dengan user server Anda
+sudo chown -R ubuntu:ubuntu uploads
+chmod -R 755 uploads
+
+# Opsi 2: Berikan akses write ke semua user (Hanya untuk development/testing)
+# chmod -R 777 uploads
 ```
 
-## 6️⃣ Menjalankan Server
+Jika permission tidak diatur, Anda mungkin akan menemui error `EACCES: permission denied` saat mencoba upload file.
+
+## 6️⃣ Menjalankan Aplikasi
 
 ### Development Mode
 ```bash
 npm run start:dev
 ```
 
-### Development Normal
-```bash
-npm run start
-```
-
-### Debug Mode
-```bash
-npm run start:debug
-```
-
 ### Production Mode
-```bash
-npm run start:prod
-```
+1. Build aplikasi:
+   ```bash
+   npm run build
+   ```
+2. Jalankan:
+   ```bash
+   npm run start:prod
+   ```
 
 ---
 
 # 📌 Fitur Utama
 
-### 🔒 Enkripsi & Hashing (Keamanan Data)
+### �️ Manajemen Kategori Dinamis (Core Feature)
+Fitur unggulan yang memungkinkan admin membuat jenis arsip baru tanpa coding:
+- **Konfigurasi Field:** Atur label nomor (misal: "NIK", "No. Akta"), dan validasi wajib isi.
+- **Validasi Canggih:**
+  - Tipe input (Numerik, Alfanumerik, Custom)
+  - Panjang karakter (Min/Max)
+  - Regex custom & Input Masking
+- **Unique Constraints:** Cegah duplikasi data berdasarkan kombinasi (No, No+Tanggal, No+NoFisik).
+- **Security Toggle:** Aktifkan/nonaktifkan enkripsi per kategori.
+
+### 📄 Manajemen Arsip Universal
+Sistem CRUD arsip yang fleksibel mengikuti konfigurasi kategori:
+- **Input Data:** Nomor, Nama, Tanggal, dan Nomor Fisik (Rak/Lemari).
+- **File Upload:** Upload banyak file (multi-file) untuk satu data arsip.
+- **Pencarian & Filter:** Filter berdasarkan kategori, tanggal, dan status.
+- **Keamanan:** Data sensitif (Nomor) di-hash dan di-enkripsi jika kategori mengaktifkan fitur keamanan.
+
+### 🔐 Manajemen User & Role
+Hanya terdapat dua role untuk kesederhanaan dan keamanan:
+1. **Admin:** Akses penuh ke pengaturan sistem, manajemen user, dan manajemen kategori.
+2. **Operator:** Fokus pada input data arsip, pencarian, dan upload file.
+
+### 📦 File Handling
+- Upload multi-file
+- Penyimpanan file lokal (`/uploads`)
+- Otomatis hapus file fisik saat data dihapus
+
+### 📊 Dashboard & Monitoring
+- Statistik total arsip per kategori.
+- Grafik pertumbuhan data.
+- Status sinkronisasi data.
+
+### �🔒 Enkripsi & Hashing (Keamanan Data)
 Proyek ini mendukung fitur keamanan tingkat lanjut untuk melindungi data sensitif warga:
 
 #### **1. Enkripsi (AES-256 + HMAC)**
@@ -96,55 +182,38 @@ Proyek ini mendukung fitur keamanan tingkat lanjut untuk melindungi data sensiti
 - Berfungsi untuk pencocokan tanpa mengungkap data asli
 - Cocok untuk validasi unik seperti: nomor akta, nomor surat, dll
 
-### 📌 Fitur Utama
-
-### 🔐 Manajemen User
-- Admin  
-- Petugas  
-- Masyarakat  
-- Login & refresh token JWT  
-- Pengaturan akun  
-
-### 📄 CRUD Arsip
-- Akta Kelahiran  
-- Akta Kematian  
-- Surat Kehilangan  
-- Surat Permohonan Pindah  
-- Surat Perubahan Kependudukan  
-
-### 📦 File Handling
-- Upload multi-file  
-- Penyimpanan berelasi  
-- Otomatis hapus file lama saat update/delete  
-
-### 🔒 Keamanan Data
-- Enkripsi opsional (AES + HMAC)
-- Hashing data sensitif (SHA-256)
-- Melindungi data seperti NIK, nomor dokumen, dan arsip penting
-
-### 📊 Dashboard
-- Ringkasan seluruh arsip  
-- Total, status, dan grafik  
-
 ### ⚙️ Backend Support
-- Prisma ORM (PostgreSQL)  
-- Global success & error formatter  
-- Struktur folder rapi & modular  
+- **Prisma ORM:** Type-safe database queries.
+- **Validation:** Zod schema validation untuk integritas data.
+- **Security:** Bcrypt hashing, AES-256 Encryption, HMAC signing.
 
 ---
 
-# 📁 Menu Utama (Aplikasi)
+# 📁 Struktur Menu Aplikasi
 
-- Dashboard  
-- Data User  
-- Layanan Arsip  
-  - Akta Kelahiran  
-  - Akta Kematian  
-  - Surat Kehilangan  
-  - Surat Permohonan Pindah  
-  - Surat Perubahan Kependudukan  
-- Pengaturan Akun  
-- Logout  
+- **Dashboard** (Statistik Ringkas)
+- **Manajemen Arsip** (Dynamic Menu sesuai Kategori yang dibuat)
+  - *Contoh: Akta Kelahiran, Kartu Keluarga, dll.*
+- **Master Data**
+  - **Kategori Arsip** (Buat/Edit jenis arsip & validasi)
+- **Pengaturan**
+  - **Manajemen User** (Admin & Operator)
+- **Logout**
 
 ---
 
+# 📁 Struktur Folder
+
+```
+backend/
+├── prisma/              # Schema database & seeder
+├── src/
+│   ├── auth/            # Modul autentikasi
+│   ├── common/          # Filter, Interceptor, Decorator global
+│   ├── modules/         # Modul fitur (Arsip, User, Dashboard)
+│   ├── app.module.ts    # Root module
+│   └── main.ts          # Entry point
+├── uploads/             # Folder penyimpanan file (Gitignored)
+├── .env                 # Konfigurasi environment
+└── package.json
+```

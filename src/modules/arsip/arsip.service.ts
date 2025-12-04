@@ -652,4 +652,28 @@ export class ArsipService {
       handleFindError(error, 'File Arsip');
     }
   }
+
+  async toggleSync(id: number) {
+    try {
+      const arsip = await this.prisma.arsipSemua.findUniqueOrThrow({
+        where: { id },
+      });
+
+      const updated = await this.prisma.arsipSemua.update({
+        where: { id },
+        data: {
+          isSync: !arsip.isSync,
+          syncAt: !arsip.isSync ? new Date() : null,
+        },
+      });
+
+      return {
+        message: updated.isSync ? 'Arsip berhasil disinkronisasi' : 'Sinkronisasi dibatalkan',
+        data: updated,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw new BadRequestException('Gagal mengubah status sinkronisasi');
+    }
+  }
 }
