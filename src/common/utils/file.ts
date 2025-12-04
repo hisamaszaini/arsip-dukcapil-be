@@ -1,4 +1,7 @@
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,7 +18,7 @@ export function generateFileName(original: string): string {
 export async function writeFileToDisk(
   file: Express.Multer.File,
   name: string,
-  subfolder = ''
+  subfolder = '',
 ): Promise<void> {
   try {
     const dirPath = path.join(UPLOAD_PATH, subfolder);
@@ -41,8 +44,9 @@ export async function deleteFileFromDisk(filePath: string): Promise<void> {
 export async function handleUpload(params: {
   file: Express.Multer.File;
   uploadSubfolder?: string;
+  customBuffer?: Buffer;
 }): Promise<string> {
-  const { file, uploadSubfolder = '' } = params;
+  const { file, uploadSubfolder = '', customBuffer } = params;
 
   if (!file || !file.originalname) {
     throw new BadRequestException('File tidak valid atau tidak ditemukan');
@@ -51,7 +55,14 @@ export async function handleUpload(params: {
   const savedFileName = generateFileName(file.originalname);
   const relativePath = path.posix.join(uploadSubfolder, savedFileName);
 
-  await writeFileToDisk(file, savedFileName, uploadSubfolder);
+  if (customBuffer) {
+    // Write custom buffer (e.g. encrypted data) directly to disk
+    // We mock a file object with the custom buffer
+    const mockFile = { ...file, buffer: customBuffer, path: undefined };
+    await writeFileToDisk(mockFile as any, savedFileName, uploadSubfolder);
+  } else {
+    await writeFileToDisk(file, savedFileName, uploadSubfolder);
+  }
 
   return relativePath;
 }
@@ -61,10 +72,15 @@ export async function handleUploadAndUpdate(params: {
   file: Express.Multer.File;
   oldFilePath?: string;
   uploadSubfolder?: string;
+  customBuffer?: Buffer;
 }): Promise<string> {
-  const { file, oldFilePath, uploadSubfolder = '' } = params;
+  const { file, oldFilePath, uploadSubfolder = '', customBuffer } = params;
 
-  const relativePath = await handleUpload({ file, uploadSubfolder });
+  const relativePath = await handleUpload({
+    file,
+    uploadSubfolder,
+    customBuffer,
+  });
 
   if (oldFilePath && !oldFilePath.includes('..')) {
     await deleteFileFromDisk(oldFilePath);

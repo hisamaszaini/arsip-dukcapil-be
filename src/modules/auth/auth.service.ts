@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
@@ -15,7 +12,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
-  ) { }
+  ) {}
 
   // REGISTER USER
   // async register(dto: RegisterDto) {
@@ -57,7 +54,7 @@ export class AuthService {
         message: 'Akun Anda dinonaktifkan. Silakan hubungi administrator.',
         error: 'UNAUTHORIZED',
         errors: {
-          helpLink: `https://wa.me/6281234567890`
+          helpLink: `https://wa.me/6281234567890`,
         },
       });
     }
@@ -121,7 +118,7 @@ export class AuthService {
   async validateUserById(userId: number) {
     return this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, role: true }
+      select: { id: true, email: true, role: true },
     });
   }
 
@@ -131,12 +128,11 @@ export class AuthService {
     email: string,
     role: string,
   ): Promise<TokenPair> {
-
     const accessToken = this.jwt.sign(
       { sub, email, role },
       {
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
-      }
+      },
     );
 
     const refreshToken = this.jwt.sign(
@@ -144,7 +140,7 @@ export class AuthService {
       {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: '7d',
-      }
+      },
     );
 
     return { accessToken, refreshToken };

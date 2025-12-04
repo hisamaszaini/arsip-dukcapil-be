@@ -7,10 +7,8 @@ https://docs.nestjs.com/modules
 import { Module } from '@nestjs/common';
 
 @Module({
-    imports: [],
-    controllers: [
-        DashboardController],
-    providers: [
-        DashboardService],
+  imports: [],
+  controllers: [DashboardController],
+  providers: [DashboardService],
 })
-export class DashboardModule { }
+export class DashboardModule {}

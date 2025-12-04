@@ -1,17 +1,39 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateDto, FindAllAktaDto, UpdateDto } from './dto/akta-kematian.dto';
-import { deleteFileFromDisk, handleUpload, handleUploadAndUpdate } from '@/common/utils/file';
-import { handleCreateError, handleDeleteError, handleFindError, handleUpdateError } from '@/common/utils/handle-prisma-error';
+import {
+  deleteFileFromDisk,
+  handleUpload,
+  handleUploadAndUpdate,
+} from '@/common/utils/file';
+import {
+  handleCreateError,
+  handleDeleteError,
+  handleFindError,
+  handleUpdateError,
+} from '@/common/utils/handle-prisma-error';
 import { Prisma } from '@prisma/client';
-import { autoDecryptAndClean, encryptValue, hashDeterministic } from '@/common/utils/EncDecHas';
-import { createdResponse, deletedResponse, foundResponse, listResponse } from '@/common/utils/success-helper';
+import {
+  autoDecryptAndClean,
+  encryptValue,
+  hashDeterministic,
+} from '@/common/utils/EncDecHas';
+import {
+  createdResponse,
+  deletedResponse,
+  foundResponse,
+  listResponse,
+} from '@/common/utils/success-helper';
 
 @Injectable()
 export class AktaKematianService {
   private readonly UPLOAD_PATH = 'akta-kematian';
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(data: CreateDto, files: Express.Multer.File[], userId: number) {
     if (!files?.length) {
@@ -51,7 +73,7 @@ export class AktaKematianService {
 
       const cleaned = autoDecryptAndClean(newRecord);
 
-      return createdResponse('Akta Kematian', cleaned)
+      return createdResponse('Akta Kematian', cleaned);
     } catch (error) {
       handleCreateError(error, 'Akta Kematian');
     }
@@ -104,10 +126,13 @@ export class AktaKematianService {
     try {
       const data = await this.prisma.aktaKematian.findFirstOrThrow({
         where: { id },
-        include: { arsipFiles: { orderBy: { id: 'asc' } } }
+        include: { arsipFiles: { orderBy: { id: 'asc' } } },
       });
 
-      if (userId && data.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan mengambil akta kematian ini.");
+      if (userId && data.createdById !== userId)
+        throw new ForbiddenException(
+          'Anda tidak diizinkan mengambil akta kematian ini.',
+        );
 
       const cleaned = autoDecryptAndClean(data);
 
@@ -132,7 +157,9 @@ export class AktaKematianService {
       });
 
       if (!isAdmin && record.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak diizinkan memperbarui akta ini.');
+        throw new ForbiddenException(
+          'Anda tidak diizinkan memperbarui akta ini.',
+        );
       }
 
       // Cek apakah noAkta berubah
@@ -187,9 +214,13 @@ export class AktaKematianService {
             const newFile = files[i];
             if (!newFile) continue;
 
-            const oldFile = await tx.arsipFile.findUnique({ where: { id: fileId } });
+            const oldFile = await tx.arsipFile.findUnique({
+              where: { id: fileId },
+            });
             if (!oldFile) {
-              throw new BadRequestException(`File dengan ID ${fileId} tidak ditemukan`);
+              throw new BadRequestException(
+                `File dengan ID ${fileId} tidak ditemukan`,
+              );
             }
 
             // Upload file baru dan hapus file lama dari disk menggunakan helper
@@ -240,9 +271,10 @@ export class AktaKematianService {
 
           return {
             success: true,
-            message: newFiles.length > 0
-              ? 'File berhasil diganti dan file baru ditambahkan'
-              : 'File berhasil diganti',
+            message:
+              newFiles.length > 0
+                ? 'File berhasil diganti dan file baru ditambahkan'
+                : 'File berhasil diganti',
             data: cleaned,
           };
         }
@@ -322,18 +354,24 @@ export class AktaKematianService {
       });
 
       if (!file.aktaKematian) {
-        throw new BadRequestException('File tidak memiliki relasi akta kematian');
+        throw new BadRequestException(
+          'File tidak memiliki relasi akta kematian',
+        );
       }
 
       // Cek apakah user berhak menghapus file
       if (userId && file.aktaKematian.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak memiliki izin untuk menghapus file ini');
+        throw new ForbiddenException(
+          'Anda tidak memiliki izin untuk menghapus file ini',
+        );
       }
 
       // Cek jumlah file yang dimiliki aktaKematian
       const totalFiles = file.aktaKematian.arsipFiles.length;
       if (totalFiles <= 1) {
-        throw new BadRequestException('Tidak dapat menghapus semua file, setidaknya harus ada 1 file tersisa.');
+        throw new BadRequestException(
+          'Tidak dapat menghapus semua file, setidaknya harus ada 1 file tersisa.',
+        );
       }
 
       // Hapus file dari disk
@@ -358,7 +396,9 @@ export class AktaKematianService {
       });
 
       if (userId && record.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak diizinkan menghapus data ini.');
+        throw new ForbiddenException(
+          'Anda tidak diizinkan menghapus data ini.',
+        );
       }
 
       await this.prisma.$transaction(async (tx) => {

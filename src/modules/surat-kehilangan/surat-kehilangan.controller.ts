@@ -1,16 +1,45 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
+  UsePipes,
+  Query,
+  Request,
+} from '@nestjs/common';
 import { SuratKehilanganService } from './surat-kehilangan.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { CreateDto, createSchema, FindAllSuratKehilanganDto, findAllSuratKehilanganSchema, UpdateDto, updateSchema } from './dto/surat-kehilangan.dto';
-import { ZodValidationPipe } from 'nestjs-zod';
-import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import {
+  CreateDto,
+  createSchema,
+  FindAllSuratKehilanganDto,
+  findAllSuratKehilanganSchema,
+  UpdateDto,
+  updateSchema,
+} from './dto/surat-kehilangan.dto';
+import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtPayload } from '../auth/auth.types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('surat-kehilangan')
 export class SuratKehilanganController {
-  constructor(private readonly suratKehilanganService: SuratKehilanganService) { }
+  constructor(
+    private readonly suratKehilanganService: SuratKehilanganService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -23,7 +52,9 @@ export class SuratKehilanganController {
             new BadRequestException({
               success: false,
               message: 'Format file tidak valid',
-              errors: { [file.fieldname]: `File ${file.originalname} harus JPG/JPEG` },
+              errors: {
+                [file.fieldname]: `File ${file.originalname} harus JPG/JPEG`,
+              },
             }),
             false,
           );
@@ -51,26 +82,22 @@ export class SuratKehilanganController {
   }
 
   @Get()
-  @UsePipes(new ZodValidationPipe(findAllSuratKehilanganSchema))
+  @UsePipes(new ZodValidationPipe(findAllSuratKehilanganSchema, 'query'))
   @HttpCode(HttpStatus.OK)
   findAll(
     @Query() query: FindAllSuratKehilanganDto,
     @Request() req: { user: JwtPayload },
   ) {
-    if (req.user.role !== "ADMIN") {
+    if (req.user.role !== 'ADMIN') {
       return this.suratKehilanganService.findAll(query, req.user.userId);
     }
     return this.suratKehilanganService.findAll(query);
   }
 
-
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(
-    @Param('id') id: string,
-    @Request() req: { user: JwtPayload },
-  ) {
-    if (req.user.role !== "ADMIN") {
+  findOne(@Param('id') id: string, @Request() req: { user: JwtPayload }) {
+    if (req.user.role !== 'ADMIN') {
       return this.suratKehilanganService.findOne(+id, req.user.userId);
     }
     return this.suratKehilanganService.findOne(+id);
@@ -78,19 +105,20 @@ export class SuratKehilanganController {
 
   @Patch(':id')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'files', maxCount: 1 },
-      ],
-      {
-        limits: { fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024 }, fileFilter: (req, file, cb) => {
-          if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
-            return cb(new BadRequestException('Hanya file JPG/JPEG yang diizinkan'), false);
-          }
-          cb(null, true);
-        },
+    FileFieldsInterceptor([{ name: 'files', maxCount: 1 }], {
+      limits: {
+        fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024,
       },
-    ),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+          return cb(
+            new BadRequestException('Hanya file JPG/JPEG yang diizinkan'),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
   )
   @HttpCode(HttpStatus.OK)
   async update(
@@ -99,19 +127,21 @@ export class SuratKehilanganController {
     @UploadedFiles() files: { [key: string]: Express.Multer.File[] },
     @Request() req: { user: JwtPayload },
   ) {
-    if (req.user.role !== "ADMIN") {
-      return this.suratKehilanganService.update(+id, body, files, req.user.userId);
+    if (req.user.role !== 'ADMIN') {
+      return this.suratKehilanganService.update(
+        +id,
+        body,
+        files,
+        req.user.userId,
+      );
     }
     return this.suratKehilanganService.update(+id, body, files);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(
-    @Param('id') id: string,
-    @Request() req: { user: JwtPayload },
-  ) {
-    if (req.user.role !== "ADMIN") {
+  remove(@Param('id') id: string, @Request() req: { user: JwtPayload }) {
+    if (req.user.role !== 'ADMIN') {
       return this.suratKehilanganService.remove(+id, req.user.userId);
     }
     return this.suratKehilanganService.remove(+id);

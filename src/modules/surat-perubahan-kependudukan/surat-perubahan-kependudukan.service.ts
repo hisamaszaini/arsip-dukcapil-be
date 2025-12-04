@@ -1,17 +1,43 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { CreateDto, FindAllSuratPerubahanKependudukanDto, UpdateDto } from './dto/surat-perubahan-kependudukan.dto';
-import { deleteFileFromDisk, handleUpload, handleUploadAndUpdate } from '@/common/utils/file';
-import { handleCreateError, handleDeleteError, handleFindError, handleUpdateError } from '@/common/utils/handle-prisma-error';
+import {
+  CreateDto,
+  FindAllSuratPerubahanKependudukanDto,
+  UpdateDto,
+} from './dto/surat-perubahan-kependudukan.dto';
+import {
+  deleteFileFromDisk,
+  handleUpload,
+  handleUploadAndUpdate,
+} from '@/common/utils/file';
+import {
+  handleCreateError,
+  handleDeleteError,
+  handleFindError,
+  handleUpdateError,
+} from '@/common/utils/handle-prisma-error';
 import { Prisma } from '@prisma/client';
-import { autoDecryptAndClean, encryptValue, hashDeterministic } from '@/common/utils/EncDecHas';
-import { createdResponse, deletedResponse, foundResponse, listResponse } from '@/common/utils/success-helper';
+import {
+  autoDecryptAndClean,
+  encryptValue,
+  hashDeterministic,
+} from '@/common/utils/EncDecHas';
+import {
+  createdResponse,
+  deletedResponse,
+  foundResponse,
+  listResponse,
+} from '@/common/utils/success-helper';
 
 @Injectable()
 export class SuratPerubahanKependudukanService {
   private readonly UPLOAD_PATH = 'surat-perubahan-kependudukan';
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(data: CreateDto, files: Express.Multer.File[], userId: number) {
     if (!files?.length) {
@@ -102,12 +128,16 @@ export class SuratPerubahanKependudukanService {
 
   async findOne(id: number, userId?: number) {
     try {
-      const data = await this.prisma.suratPerubahanKependudukan.findFirstOrThrow({
-        where: { id },
-        include: { arsipFiles: { orderBy: { id: 'asc' } } }
-      });
+      const data =
+        await this.prisma.suratPerubahanKependudukan.findFirstOrThrow({
+          where: { id },
+          include: { arsipFiles: { orderBy: { id: 'asc' } } },
+        });
 
-      if (userId && data.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan mengambil surat perubahan-kependudukan ini.");
+      if (userId && data.createdById !== userId)
+        throw new ForbiddenException(
+          'Anda tidak diizinkan mengambil surat perubahan-kependudukan ini.',
+        );
 
       const cleaned = autoDecryptAndClean(data);
 
@@ -126,13 +156,16 @@ export class SuratPerubahanKependudukanService {
   ) {
     try {
       // --- Validasi record dulu ---
-      const record = await this.prisma.suratPerubahanKependudukan.findUniqueOrThrow({
-        where: { id },
-        include: { arsipFiles: { orderBy: { id: 'asc' } } },
-      });
+      const record =
+        await this.prisma.suratPerubahanKependudukan.findUniqueOrThrow({
+          where: { id },
+          include: { arsipFiles: { orderBy: { id: 'asc' } } },
+        });
 
       if (!isAdmin && record.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak diizinkan memperbarui surat ini.');
+        throw new ForbiddenException(
+          'Anda tidak diizinkan memperbarui surat ini.',
+        );
       }
 
       // Cek apakah nik berubah
@@ -187,9 +220,13 @@ export class SuratPerubahanKependudukanService {
             const newFile = files[i];
             if (!newFile) continue;
 
-            const oldFile = await tx.arsipFile.findUnique({ where: { id: fileId } });
+            const oldFile = await tx.arsipFile.findUnique({
+              where: { id: fileId },
+            });
             if (!oldFile) {
-              throw new BadRequestException(`File dengan ID ${fileId} tidak ditemukan`);
+              throw new BadRequestException(
+                `File dengan ID ${fileId} tidak ditemukan`,
+              );
             }
 
             // Upload file baru dan hapus file lama dari disk menggunakan helper
@@ -240,9 +277,10 @@ export class SuratPerubahanKependudukanService {
 
           return {
             success: true,
-            message: newFiles.length > 0
-              ? 'File berhasil diganti dan file baru ditambahkan'
-              : 'File berhasil diganti',
+            message:
+              newFiles.length > 0
+                ? 'File berhasil diganti dan file baru ditambahkan'
+                : 'File berhasil diganti',
             data: cleaned,
           };
         }
@@ -322,18 +360,24 @@ export class SuratPerubahanKependudukanService {
       });
 
       if (!file.suratPerKpn) {
-        throw new BadRequestException('File tidak memiliki relasi surat perubahan-kependudukan');
+        throw new BadRequestException(
+          'File tidak memiliki relasi surat perubahan-kependudukan',
+        );
       }
 
       // Cek apakah user berhak menghapus file
       if (userId && file.suratPerKpn.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak memiliki izin untuk menghapus file ini');
+        throw new ForbiddenException(
+          'Anda tidak memiliki izin untuk menghapus file ini',
+        );
       }
 
       // Cek jumlah file yang dimiliki suratPerubahanKependudukan
       const totalFiles = file.suratPerKpn.arsipFiles.length;
       if (totalFiles <= 1) {
-        throw new BadRequestException('Tidak dapat menghapus semua file, setidaknya harus ada 1 file tersisa.');
+        throw new BadRequestException(
+          'Tidak dapat menghapus semua file, setidaknya harus ada 1 file tersisa.',
+        );
       }
 
       // Hapus file dari disk
@@ -352,13 +396,16 @@ export class SuratPerubahanKependudukanService {
 
   async remove(id: number, userId?: number) {
     try {
-      const record = await this.prisma.suratPerubahanKependudukan.findUniqueOrThrow({
-        where: { id },
-        include: { arsipFiles: true },
-      });
+      const record =
+        await this.prisma.suratPerubahanKependudukan.findUniqueOrThrow({
+          where: { id },
+          include: { arsipFiles: true },
+        });
 
       if (userId && record.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak diizinkan menghapus data ini.');
+        throw new ForbiddenException(
+          'Anda tidak diizinkan menghapus data ini.',
+        );
       }
 
       await this.prisma.$transaction(async (tx) => {

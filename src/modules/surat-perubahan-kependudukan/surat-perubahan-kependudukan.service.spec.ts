@@ -9,7 +9,9 @@ describe('SuratPerubahanKependudukanService', () => {
       providers: [SuratPerubahanKependudukanService],
     }).compile();
 
-    service = module.get<SuratPerubahanKependudukanService>(SuratPerubahanKependudukanService);
+    service = module.get<SuratPerubahanKependudukanService>(
+      SuratPerubahanKependudukanService,
+    );
   });
 
   it('should be defined', () => {

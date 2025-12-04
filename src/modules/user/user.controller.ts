@@ -1,6 +1,28 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, Query, UsePipes, Request, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  Query,
+  UsePipes,
+  Request,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateDto, createSchema, FindAllUserDto, findAllUserSchema, UpdateDto, updateSchema } from './dto/user.dto';
+import {
+  CreateDto,
+  createSchema,
+  FindAllUserDto,
+  findAllUserSchema,
+  UpdateDto,
+  updateSchema,
+} from './dto/user.dto';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt.guard';
 import { RolesGuard } from '@/modules/auth/guards/roles.guard';
 import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
@@ -9,25 +31,21 @@ import { Roles } from '@/common/decorators/roles.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @Post()
   @Roles('ADMIN')
   @UsePipes(new ZodValidationPipe(createSchema))
   @HttpCode(HttpStatus.OK)
-  create(
-    @Body() createUserDto: CreateDto
-  ) {
+  create(@Body() createUserDto: CreateDto) {
     return this.userService.create(createUserDto);
   }
 
   @Get()
   @Roles('ADMIN')
-  @UsePipes(new ZodValidationPipe(findAllUserSchema))
+  @UsePipes(new ZodValidationPipe(findAllUserSchema, 'query'))
   @HttpCode(HttpStatus.OK)
-  findAll(
-    @Query() query: FindAllUserDto
-  ) {
+  findAll(@Query() query: FindAllUserDto) {
     return this.userService.findAll(query);
   }
 
@@ -54,7 +72,7 @@ export class UserController {
   @Roles('ADMIN')
   update(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(updateSchema)) updateUserDto: UpdateDto
+    @Body(new ZodValidationPipe(updateSchema)) updateUserDto: UpdateDto,
   ) {
     return this.userService.update(+id, updateUserDto);
   }

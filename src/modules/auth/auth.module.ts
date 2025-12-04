@@ -17,10 +17,11 @@ import { UserService } from '@/modules/user/user.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_ACCESS_SECRET') ?? 'super-secret-access',
+        secret:
+          config.get<string>('JWT_ACCESS_SECRET') ?? 'super-secret-access',
         signOptions: {
-          expiresIn:
-            (config.get<string>('JWT_ACCESS_EXPIRES') ?? '15m') as JwtSignOptions['expiresIn'],
+          expiresIn: (config.get<string>('JWT_ACCESS_EXPIRES') ??
+            '15m') as JwtSignOptions['expiresIn'],
         },
       }),
     }),

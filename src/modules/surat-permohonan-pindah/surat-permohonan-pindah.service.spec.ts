@@ -9,7 +9,9 @@ describe('SuratPermohonanPindahService', () => {
       providers: [SuratPermohonanPindahService],
     }).compile();
 
-    service = module.get<SuratPermohonanPindahService>(SuratPermohonanPindahService);
+    service = module.get<SuratPermohonanPindahService>(
+      SuratPermohonanPindahService,
+    );
   });
 
   it('should be defined', () => {

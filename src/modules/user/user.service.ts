@@ -1,12 +1,27 @@
-import { BadRequestException, ConflictException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateDto, FindAllUserDto, UpdateDto } from './dto/user.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import { hash } from '@/modules/auth/auth.util';
 import { FieldConflictException } from '@/common/utils/fieldConflictException';
+import {
+  handleCreateError,
+  handleDeleteError,
+  handleFindError,
+  handleUpdateError,
+} from '@/common/utils/handle-prisma-error';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) { }
+  private readonly logger = new Logger(UserService.name);
+  constructor(private prisma: PrismaService) {}
 
   async create(data: CreateDto) {
     try {
@@ -14,7 +29,10 @@ export class UserService {
         where: { username: data.username },
       });
       if (checkUsername) {
-        throw new FieldConflictException('username', 'Username sudah terdaftar');
+        throw new FieldConflictException(
+          'username',
+          'Username sudah terdaftar',
+        );
       }
 
       const checkEmail = await this.prisma.user.findUnique({
@@ -24,14 +42,13 @@ export class UserService {
         throw new FieldConflictException('email', 'Email sudah terdaftar');
       }
 
-
       data.password = await hash(data.password);
 
       const { confirmPassword, ...finalData } = data;
 
       const user = await this.prisma.user.create({
         data: finalData,
-      })
+      });
 
       const { password, refreshToken, ...userData } = user;
       return {
@@ -39,12 +56,8 @@ export class UserService {
         data: userData,
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      console.error(error);
-      throw new InternalServerErrorException('Gagal membuat akun baru');
+      this.logger.error(error);
+      handleCreateError(error, 'User');
     }
   }
 
@@ -84,7 +97,7 @@ export class UserService {
           role: true,
           statusUser: true,
           createdAt: true,
-          updatedAt: true
+          updatedAt: true,
         },
       }),
     ]);
@@ -104,7 +117,7 @@ export class UserService {
   async findOne(id: number) {
     try {
       const user = await this.prisma.user.findFirstOrThrow({
-        where: { id }
+        where: { id },
       });
 
       const { password, refreshToken, ...userData } = user;
@@ -112,26 +125,27 @@ export class UserService {
       return {
         message: 'Data akun berhasil diambil',
         data: userData,
-      }
+      };
     } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('User tidak ditemukan');
-      }
-      throw new InternalServerErrorException('Gagal mengambil data user');
+      this.logger.error(error);
+      handleFindError(error, 'User');
     }
   }
 
   async update(id: number, data: UpdateDto) {
     try {
       const existing = await this.prisma.user.findFirstOrThrow({
-        where: { id }
+        where: { id },
       });
 
       const checkUsername = await this.prisma.user.findFirst({
         where: { username: data.username, NOT: { id: id } },
       });
       if (checkUsername) {
-        throw new FieldConflictException('username', 'Username sudah terdaftar');
+        throw new FieldConflictException(
+          'username',
+          'Username sudah terdaftar',
+        );
       }
 
       const checkEmail = await this.prisma.user.findFirst({
@@ -156,13 +170,9 @@ export class UserService {
         message: 'User berhasil diperbarui',
         data: userData,
       };
-
     } catch (error) {
-      console.error(error);
-      if (error instanceof ConflictException || error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new InternalServerErrorException('Gagal memperbarui user');
+      this.logger.error(error);
+      handleUpdateError(error, 'User');
     }
   }
 
@@ -184,15 +194,8 @@ export class UserService {
         message: 'User berhasil dihapus',
       };
     } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('User tidak ditemukan');
-      }
-
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-
-      throw new InternalServerErrorException('Gagal menghapus user');
+      this.logger.error(error);
+      handleDeleteError(error, 'User');
     }
   }
 }

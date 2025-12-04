@@ -11,7 +11,9 @@ describe('SuratKehilanganController', () => {
       providers: [SuratKehilanganService],
     }).compile();
 
-    controller = module.get<SuratKehilanganController>(SuratKehilanganController);
+    controller = module.get<SuratKehilanganController>(
+      SuratKehilanganController,
+    );
   });
 
   it('should be defined', () => {

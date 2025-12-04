@@ -23,8 +23,8 @@ import { UserService } from '@/modules/user/user.service';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly usersService: UserService
-  ) { }
+    private readonly usersService: UserService,
+  ) {}
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)

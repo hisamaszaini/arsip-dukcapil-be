@@ -1,4 +1,9 @@
-import { Catch, ExceptionFilter, ArgumentsHost, BadRequestException } from '@nestjs/common';
+import {
+  Catch,
+  ExceptionFilter,
+  ArgumentsHost,
+  BadRequestException,
+} from '@nestjs/common';
 import { MulterError } from 'multer';
 
 @Catch(MulterError)

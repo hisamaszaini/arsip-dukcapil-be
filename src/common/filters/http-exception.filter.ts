@@ -1,4 +1,10 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 
 @Catch()
@@ -25,7 +31,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
       // Jika response memiliki field errors field-specific
       if (excResp?.errors) {
-
         // --- Tambahan: normalisasi array -> object tanpa mengubah komentarmu ---
         let normalizedErrors: Record<string, string> = {};
 
@@ -49,12 +54,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
         };
       } else {
         // Global error
-        body = {
-          success: false,
-          message:
-            typeof excResp === 'string' ? excResp : excResp.message || 'Terjadi error',
-          errors: null,
-        };
+        const message = excResp.message;
+        if (typeof message === 'object' && message !== null && !Array.isArray(message)) {
+          body = {
+            success: false,
+            message: 'Validasi gagal',
+            errors: message as Record<string, string>,
+          };
+        } else {
+          body = {
+            success: false,
+            message: typeof excResp === 'string' ? excResp : message || 'Terjadi error',
+            errors: null,
+          };
+        }
       }
     } else if (exception instanceof Error) {
       // Non-HTTP exception fallback 500

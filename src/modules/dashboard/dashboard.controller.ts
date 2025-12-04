@@ -1,4 +1,11 @@
-import { Controller, Get, HttpCode, HttpStatus, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { DashboardService } from './dashboard.service';
 import { JwtPayload } from '../auth/auth.types';
@@ -10,14 +17,12 @@ export class DashboardController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  dashboardData(
-    @Request() req: { user: JwtPayload },
-  ) {
+  dashboardData(@Request() req: { user: JwtPayload }) {
     const user = req.user;
-    if (user.role === "ADMIN") {
-      return this.dashboardService.getDashboardData();
+    if (user.role === 'ADMIN') {
+      return this.dashboardService.getDashboardDataAll();
     } else {
-      return this.dashboardService.getDashboardDataOperator(req.user.userId);
+      return this.dashboardService.getDashboardDataOperatorAll(req.user.userId);
     }
   }
 }

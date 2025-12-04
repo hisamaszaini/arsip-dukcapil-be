@@ -1,16 +1,43 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { CreateDto, FindAllSuratKehilanganDto, UpdateDto } from './dto/surat-kehilangan.dto';
-import { deleteFileFromDisk, handleUpload, handleUploadAndUpdate } from '@/common/utils/file';
-import { handleCreateError, handleDeleteError, handleFindError, handleUpdateError } from '@/common/utils/handle-prisma-error';
-import { autoDecryptAndClean, encryptValue, hashDeterministic } from '@/common/utils/EncDecHas';
-import { createdResponse, deletedResponse, foundResponse, listResponse, updatedResponse } from '@/common/utils/success-helper';
+import {
+  CreateDto,
+  FindAllSuratKehilanganDto,
+  UpdateDto,
+} from './dto/surat-kehilangan.dto';
+import {
+  deleteFileFromDisk,
+  handleUpload,
+  handleUploadAndUpdate,
+} from '@/common/utils/file';
+import {
+  handleCreateError,
+  handleDeleteError,
+  handleFindError,
+  handleUpdateError,
+} from '@/common/utils/handle-prisma-error';
+import {
+  autoDecryptAndClean,
+  encryptValue,
+  hashDeterministic,
+} from '@/common/utils/EncDecHas';
+import {
+  createdResponse,
+  deletedResponse,
+  foundResponse,
+  listResponse,
+  updatedResponse,
+} from '@/common/utils/success-helper';
 
 @Injectable()
 export class SuratKehilanganService {
   private readonly UPLOAD_PATH = 'surat-kehilangan';
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(data: CreateDto, files: Express.Multer.File[], userId: number) {
     if (!files?.length) {
@@ -50,11 +77,10 @@ export class SuratKehilanganService {
         'Surat Kehilangan',
         autoDecryptAndClean(newRecord),
       );
-
     } catch (error) {
       // ---------- Rollback file jika gagal ----------
       for (const p of uploadedPaths) {
-        await deleteFileFromDisk(p).catch(() => { });
+        await deleteFileFromDisk(p).catch(() => {});
       }
 
       handleCreateError(error, 'Surat Kehilangan');
@@ -106,10 +132,13 @@ export class SuratKehilanganService {
   async findOne(id: number, userId?: number) {
     try {
       const data = await this.prisma.suratKehilangan.findFirstOrThrow({
-        where: { id }
+        where: { id },
       });
 
-      if (userId && data.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan mengambil surat kehilangan ini.");
+      if (userId && data.createdById !== userId)
+        throw new ForbiddenException(
+          'Anda tidak diizinkan mengambil surat kehilangan ini.',
+        );
       const cleaned = autoDecryptAndClean(data);
 
       return foundResponse('Surat Kehilangan', cleaned);
@@ -132,7 +161,9 @@ export class SuratKehilanganService {
 
       // ---------- Cek otorisasi jika userId disediakan ----------
       if (userId && record.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak diizinkan memperbarui surat ini.');
+        throw new ForbiddenException(
+          'Anda tidak diizinkan memperbarui surat ini.',
+        );
       }
 
       // Cek apakah nik berubah
@@ -182,7 +213,6 @@ export class SuratKehilanganService {
 
         return updatedResponse('Surat Kehilangan', cleaned);
       });
-
     } catch (error) {
       handleUpdateError(error, 'Surat Kehilangan');
     }
@@ -190,15 +220,18 @@ export class SuratKehilanganService {
 
   async remove(id: number, userId?: number) {
     try {
-      const record = await this.prisma.suratKehilangan.findFirstOrThrow({ where: { id } });
+      const record = await this.prisma.suratKehilangan.findFirstOrThrow({
+        where: { id },
+      });
 
-      if (userId && record.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan menghapus data ini.")
+      if (userId && record.createdById !== userId)
+        throw new ForbiddenException(
+          'Anda tidak diizinkan menghapus data ini.',
+        );
 
       await this.prisma.suratKehilangan.delete({ where: { id } });
 
-      await Promise.all([
-        deleteFileFromDisk(record.files),
-      ]);
+      await Promise.all([deleteFileFromDisk(record.files)]);
 
       return deletedResponse('Surat Kehilangan');
     } catch (error) {

@@ -24,6 +24,19 @@ enum StatusUser {
   INACTIVE
 }
 
+enum NoType {
+  NUMERIC
+  ALPHANUMERIC
+  CUSTOM
+}
+
+enum UniqueConstraintType {
+  NONE
+  NO
+  NO_TANGGAL
+  NO_NOFISIK
+}
+
 model User {
   id                         Int                          @id @default(autoincrement())
   name                       String
@@ -41,6 +54,59 @@ model User {
   SuratPermohonanPindah      SuratPermohonanPindah[]
   SuratPerubahanKependudukan SuratPerubahanKependudukan[]
   arsipFiles                 ArsipFile[]
+  arsipSemua                 ArsipSemua[]
+}
+
+model Kategori {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  slug        String  @unique
+  description String?
+
+  formNo           String
+  rulesFormNo      Boolean
+  rulesFormNama    Boolean
+  rulesFormTanggal Boolean
+  maxFile          Int
+
+  // Dynamic Validation Rules
+  noType      NoType  @default(ALPHANUMERIC)
+  noMinLength Int?
+  noMaxLength Int?
+  noRegex     String?
+  noPrefix    String?
+  noFormat    String?
+  noMask      String?
+
+  uniqueConstraint UniqueConstraintType @default(NONE)
+  isEncrypt        Boolean              @default(false)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  arsipSemuas ArsipSemua[]
+}
+
+model ArsipSemua {
+  id          Int         @id @default(autoincrement())
+  idKategori  Int
+  kategori    Kategori    @relation(fields: [idKategori], references: [id], onDelete: Cascade)
+  no          String
+  noEnc       String?
+  noHash      String?
+  nama        String?
+  tanggal     DateTime?
+  noFisik     String
+  createdById Int?
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  arsipFiles  ArsipFile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([idKategori])
+  @@index([idKategori, no])
+  @@index([idKategori, no, tanggal])
+  @@index([idKategori, no, noFisik])
 }
 
 model ArsipFile {
@@ -59,6 +125,8 @@ model ArsipFile {
   uploadBy        User?                       @relation(fields: [uploadById], references: [id], onDelete: SetNull)
   createdAt       DateTime                    @default(now())
   updatedAt       DateTime                    @updatedAt
+  arsipSemua      ArsipSemua?                 @relation(fields: [arsipSemuaId], references: [id], onDelete: Cascade)
+  arsipSemuaId    Int?
 }
 
 model AktaKematian {
@@ -97,7 +165,7 @@ model SuratKehilangan {
   id          Int      @id @default(autoincrement())
   nik         String
   nikEnc      String?
-  nikHash     String?  @unique
+  nikHash     String?
   tanggal     DateTime @db.Date
   noFisik     String
   files       String
@@ -106,6 +174,7 @@ model SuratKehilangan {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@unique([nik, tanggal])
   @@index([createdAt])
   @@index([createdById])
 }

@@ -11,7 +11,9 @@ describe('SuratPerubahanKependudukanController', () => {
       providers: [SuratPerubahanKependudukanService],
     }).compile();
 
-    controller = module.get<SuratPerubahanKependudukanController>(SuratPerubahanKependudukanController);
+    controller = module.get<SuratPerubahanKependudukanController>(
+      SuratPerubahanKependudukanController,
+    );
   });
 
   it('should be defined', () => {

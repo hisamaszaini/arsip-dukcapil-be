@@ -1,17 +1,43 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { CreateDto, FindAllSuratPermohonanPindahDto, UpdateDto } from './dto/surat-permohonan-pindah.dto';
-import { deleteFileFromDisk, handleUpload, handleUploadAndUpdate } from '@/common/utils/file';
-import { handleCreateError, handleDeleteError, handleFindError, handleUpdateError } from '@/common/utils/handle-prisma-error';
+import {
+  CreateDto,
+  FindAllSuratPermohonanPindahDto,
+  UpdateDto,
+} from './dto/surat-permohonan-pindah.dto';
+import {
+  deleteFileFromDisk,
+  handleUpload,
+  handleUploadAndUpdate,
+} from '@/common/utils/file';
+import {
+  handleCreateError,
+  handleDeleteError,
+  handleFindError,
+  handleUpdateError,
+} from '@/common/utils/handle-prisma-error';
 import { Prisma } from '@prisma/client';
-import { autoDecryptAndClean, encryptValue, hashDeterministic } from '@/common/utils/EncDecHas';
-import { createdResponse, deletedResponse, foundResponse, listResponse } from '@/common/utils/success-helper';
+import {
+  autoDecryptAndClean,
+  encryptValue,
+  hashDeterministic,
+} from '@/common/utils/EncDecHas';
+import {
+  createdResponse,
+  deletedResponse,
+  foundResponse,
+  listResponse,
+} from '@/common/utils/success-helper';
 
 @Injectable()
 export class SuratPermohonanPindahService {
   private readonly UPLOAD_PATH = 'surat-permohonan-pindah';
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(data: CreateDto, files: Express.Multer.File[], userId: number) {
     if (!files?.length) {
@@ -104,10 +130,13 @@ export class SuratPermohonanPindahService {
     try {
       const data = await this.prisma.suratPermohonanPindah.findFirstOrThrow({
         where: { id },
-        include: { arsipFiles: { orderBy: { id: 'asc' } } }
+        include: { arsipFiles: { orderBy: { id: 'asc' } } },
       });
 
-      if (userId && data.createdById !== userId) throw new ForbiddenException("Anda tidak diizinkan mengambil surat permohonan-pindah ini.");
+      if (userId && data.createdById !== userId)
+        throw new ForbiddenException(
+          'Anda tidak diizinkan mengambil surat permohonan-pindah ini.',
+        );
 
       const cleaned = autoDecryptAndClean(data);
 
@@ -132,7 +161,9 @@ export class SuratPermohonanPindahService {
       });
 
       if (!isAdmin && record.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak diizinkan memperbarui surat ini.');
+        throw new ForbiddenException(
+          'Anda tidak diizinkan memperbarui surat ini.',
+        );
       }
 
       // Cek apakah nik berubah
@@ -187,9 +218,13 @@ export class SuratPermohonanPindahService {
             const newFile = files[i];
             if (!newFile) continue;
 
-            const oldFile = await tx.arsipFile.findUnique({ where: { id: fileId } });
+            const oldFile = await tx.arsipFile.findUnique({
+              where: { id: fileId },
+            });
             if (!oldFile) {
-              throw new BadRequestException(`File dengan ID ${fileId} tidak ditemukan`);
+              throw new BadRequestException(
+                `File dengan ID ${fileId} tidak ditemukan`,
+              );
             }
 
             // Upload file baru dan hapus file lama dari disk menggunakan helper
@@ -240,9 +275,10 @@ export class SuratPermohonanPindahService {
 
           return {
             success: true,
-            message: newFiles.length > 0
-              ? 'File berhasil diganti dan file baru ditambahkan'
-              : 'File berhasil diganti',
+            message:
+              newFiles.length > 0
+                ? 'File berhasil diganti dan file baru ditambahkan'
+                : 'File berhasil diganti',
             data: cleaned,
           };
         }
@@ -322,18 +358,24 @@ export class SuratPermohonanPindahService {
       });
 
       if (!file.suratPerPin) {
-        throw new BadRequestException('File tidak memiliki relasi surat permohonan-pindah');
+        throw new BadRequestException(
+          'File tidak memiliki relasi surat permohonan-pindah',
+        );
       }
 
       // Cek apakah user berhak menghapus file
       if (userId && file.suratPerPin.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak memiliki izin untuk menghapus file ini');
+        throw new ForbiddenException(
+          'Anda tidak memiliki izin untuk menghapus file ini',
+        );
       }
 
       // Cek jumlah file yang dimiliki suratPermohonanPindah
       const totalFiles = file.suratPerPin.arsipFiles.length;
       if (totalFiles <= 1) {
-        throw new BadRequestException('Tidak dapat menghapus semua file, setidaknya harus ada 1 file tersisa.');
+        throw new BadRequestException(
+          'Tidak dapat menghapus semua file, setidaknya harus ada 1 file tersisa.',
+        );
       }
 
       // Hapus file dari disk
@@ -358,7 +400,9 @@ export class SuratPermohonanPindahService {
       });
 
       if (userId && record.createdById !== userId) {
-        throw new ForbiddenException('Anda tidak diizinkan menghapus data ini.');
+        throw new ForbiddenException(
+          'Anda tidak diizinkan menghapus data ini.',
+        );
       }
 
       await this.prisma.$transaction(async (tx) => {

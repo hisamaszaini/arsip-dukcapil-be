@@ -11,7 +11,9 @@ describe('SuratPermohonanPindahController', () => {
       providers: [SuratPermohonanPindahService],
     }).compile();
 
-    controller = module.get<SuratPermohonanPindahController>(SuratPermohonanPindahController);
+    controller = module.get<SuratPermohonanPindahController>(
+      SuratPermohonanPindahController,
+    );
   });
 
   it('should be defined', () => {

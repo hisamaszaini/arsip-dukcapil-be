@@ -26,7 +26,10 @@ export function encryptValue(value: string) {
   const iv = crypto.randomBytes(12); // AES-GCM nonce
   const cipher = crypto.createCipheriv('aes-256-gcm', AES_KEY, iv);
 
-  const ciphertext = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(value, 'utf8'),
+    cipher.final(),
+  ]);
   const tag = cipher.getAuthTag();
 
   return {
@@ -106,7 +109,6 @@ export function autoDecryptAndClean<T = any>(data: T): T {
 
         const baseField = key.replace(/Enc$/, ''); // "noAktaEnc" -> "noAkta"
         result[baseField] = decrypted;
-
       } catch (err) {
         console.error(`Gagal decrypt field: ${key}`, err);
       }
@@ -121,4 +123,35 @@ export function autoDecryptAndClean<T = any>(data: T): T {
   }
 
   return result as T;
+}
+
+/* ============================================
+   FILE ENCRYPTION (BUFFER)
+   Format: IV (12 bytes) + AuthTag (16 bytes) + Ciphertext
+   ============================================ */
+export function encryptBuffer(buffer: Buffer): Buffer {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', AES_KEY, iv);
+
+  const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  // Combine: IV + Tag + Ciphertext
+  return Buffer.concat([iv, tag, ciphertext]);
+}
+
+export function decryptBuffer(encryptedBuffer: Buffer): Buffer {
+  try {
+    // Extract parts
+    const iv = encryptedBuffer.subarray(0, 12);
+    const tag = encryptedBuffer.subarray(12, 28);
+    const ciphertext = encryptedBuffer.subarray(28);
+
+    const decipher = crypto.createDecipheriv('aes-256-gcm', AES_KEY, iv);
+    decipher.setAuthTag(tag);
+
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  } catch (err) {
+    throw new BadRequestException('Gagal mendekripsi file');
+  }
 }

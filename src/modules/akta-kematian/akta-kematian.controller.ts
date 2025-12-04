@@ -1,8 +1,32 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, UseInterceptors, UploadedFiles, BadRequestException, UsePipes, Query, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
+  UsePipes,
+  Query,
+  Request,
+} from '@nestjs/common';
 import { AktaKematianService } from './akta-kematian.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { CreateDto, createSchema, FindAllAktaDto, findAllAktaSchema, UpdateDto, updateSchema } from './dto/akta-kematian.dto';
-import { ZodValidationPipe } from 'nestjs-zod';
+import {
+  CreateDto,
+  createSchema,
+  FindAllAktaDto,
+  findAllAktaSchema,
+  UpdateDto,
+  updateSchema,
+} from './dto/akta-kematian.dto';
+import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtPayload } from '../auth/auth.types';
@@ -10,7 +34,7 @@ import { JwtPayload } from '../auth/auth.types';
 @UseGuards(JwtAuthGuard)
 @Controller('akta-kematian')
 export class AktaKematianController {
-  constructor(private readonly aktaKematianService: AktaKematianService) { }
+  constructor(private readonly aktaKematianService: AktaKematianService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -22,7 +46,9 @@ export class AktaKematianController {
           return cb(
             new BadRequestException({
               message: 'Hanya file JPG/JPEG yang diizinkan',
-              errors: { [file.fieldname]: `File ${file.originalname} tidak valid` },
+              errors: {
+                [file.fieldname]: `File ${file.originalname} tidak valid`,
+              },
             }),
             false,
           );
@@ -40,11 +66,11 @@ export class AktaKematianController {
     @Request() req: { user: JwtPayload },
   ) {
     if (!files || files.length === 0) {
-      throw new BadRequestException(
-        {
-          errors: [{ field: 'files', message: 'Minimal satu file wajib diunggah.' }],
-        }
-      );
+      throw new BadRequestException({
+        errors: [
+          { field: 'files', message: 'Minimal satu file wajib diunggah.' },
+        ],
+      });
     }
 
     const userId = req.user.userId;
@@ -53,13 +79,13 @@ export class AktaKematianController {
   }
 
   @Get()
-  @UsePipes(new ZodValidationPipe(findAllAktaSchema))
+  @UsePipes(new ZodValidationPipe(findAllAktaSchema, 'query'))
   @HttpCode(HttpStatus.OK)
   findAll(
     @Query() query: FindAllAktaDto,
     @Request() req: { user: JwtPayload },
   ) {
-    if (req.user.role !== "ADMIN") {
+    if (req.user.role !== 'ADMIN') {
       return this.aktaKematianService.findAll(query, req.user.userId);
     }
     return this.aktaKematianService.findAll(query);
@@ -67,11 +93,8 @@ export class AktaKematianController {
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(
-    @Param('id') id: string,
-    @Request() req: { user: JwtPayload },
-  ) {
-    if (req.user.role !== "ADMIN") {
+  findOne(@Param('id') id: string, @Request() req: { user: JwtPayload }) {
+    if (req.user.role !== 'ADMIN') {
       return this.aktaKematianService.findOne(+id, req.user.userId);
     }
     return this.aktaKematianService.findOne(+id);
@@ -81,13 +104,20 @@ export class AktaKematianController {
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage: memoryStorage(),
-      limits: { fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024 },
+      limits: {
+        fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024,
+      },
       fileFilter: (req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
-          return cb(new BadRequestException({
-            message: 'Hanya file JPG/JPEG yang diizinkan',
-            errors: { [file.fieldname]: `File ${file.originalname} tidak valid` },
-          }), false);
+          return cb(
+            new BadRequestException({
+              message: 'Hanya file JPG/JPEG yang diizinkan',
+              errors: {
+                [file.fieldname]: `File ${file.originalname} tidak valid`,
+              },
+            }),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -104,16 +134,19 @@ export class AktaKematianController {
     const userId = req.user.userId;
     const isAdmin = req.user.role === 'ADMIN';
 
-    return this.aktaKematianService.update(aktaId, body, files, userId, isAdmin);
+    return this.aktaKematianService.update(
+      aktaId,
+      body,
+      files,
+      userId,
+      isAdmin,
+    );
   }
 
   @Delete('file/:id')
   @HttpCode(HttpStatus.OK)
-  removeFile(
-    @Param('id') id: string,
-    @Request() req: { user: JwtPayload },
-  ) {
-    if (req.user.role !== "ADMIN") {
+  removeFile(@Param('id') id: string, @Request() req: { user: JwtPayload }) {
+    if (req.user.role !== 'ADMIN') {
       return this.aktaKematianService.removeFile(+id, req.user.userId);
     }
     return this.aktaKematianService.removeFile(+id);
@@ -121,11 +154,8 @@ export class AktaKematianController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(
-    @Param('id') id: string,
-    @Request() req: { user: JwtPayload },
-  ) {
-    if (req.user.role !== "ADMIN") {
+  remove(@Param('id') id: string, @Request() req: { user: JwtPayload }) {
+    if (req.user.role !== 'ADMIN') {
       return this.aktaKematianService.remove(+id, req.user.userId);
     }
     return this.aktaKematianService.remove(+id);
