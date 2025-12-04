@@ -38,23 +38,18 @@ enum UniqueConstraintType {
 }
 
 model User {
-  id                         Int                          @id @default(autoincrement())
-  name                       String
-  email                      String                       @unique
-  username                   String                       @unique
-  password                   String
-  role                       Role                         @default(OPERATOR)
-  statusUser                 StatusUser                   @default(ACTIVE)
-  refreshToken               String?
-  createdAt                  DateTime                     @default(now())
-  updatedAt                  DateTime                     @updatedAt
-  AktaKematian               AktaKematian[]
-  AktaKelahiran              AktaKelahiran[]
-  SuratKehilangan            SuratKehilangan[]
-  SuratPermohonanPindah      SuratPermohonanPindah[]
-  SuratPerubahanKependudukan SuratPerubahanKependudukan[]
-  arsipFiles                 ArsipFile[]
-  arsipSemua                 ArsipSemua[]
+  id           Int          @id @default(autoincrement())
+  name         String
+  email        String       @unique
+  username     String       @unique
+  password     String
+  role         Role         @default(OPERATOR)
+  statusUser   StatusUser   @default(ACTIVE)
+  refreshToken String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  arsipFiles   ArsipFile[]
+  arsipSemua   ArsipSemua[]
 }
 
 model Kategori {
@@ -110,103 +105,13 @@ model ArsipSemua {
 }
 
 model ArsipFile {
-  id              Int                         @id @default(autoincrement())
-  originalName    String
-  path            String
-  aktaKematianId  Int?
-  aktaKematian    AktaKematian?               @relation(fields: [aktaKematianId], references: [id], onDelete: Cascade)
-  aktaKelahiranId Int?
-  aktaKelahiran   AktaKelahiran?              @relation(fields: [aktaKelahiranId], references: [id], onDelete: Cascade)
-  suratPerPinId   Int?
-  suratPerPin     SuratPermohonanPindah?      @relation(fields: [suratPerPinId], references: [id], onDelete: Cascade)
-  suratPerKpnId   Int?
-  suratPerKpn     SuratPerubahanKependudukan? @relation(fields: [suratPerKpnId], references: [id], onDelete: Cascade)
-  uploadById      Int?
-  uploadBy        User?                       @relation(fields: [uploadById], references: [id], onDelete: SetNull)
-  createdAt       DateTime                    @default(now())
-  updatedAt       DateTime                    @updatedAt
-  arsipSemua      ArsipSemua?                 @relation(fields: [arsipSemuaId], references: [id], onDelete: Cascade)
-  arsipSemuaId    Int?
-}
-
-model AktaKematian {
-  id          Int         @id @default(autoincrement())
-  noAkta      String      @unique
-  noAktaEnc   String?
-  noAktaHash  String?     @unique
-  noFisik     String
-  createdById Int?
-  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  arsipFiles  ArsipFile[]
-
-  @@index([createdAt])
-  @@index([createdById])
-}
-
-model AktaKelahiran {
-  id          Int         @id @default(autoincrement())
-  noAkta      String      @unique
-  noAktaEnc   String?
-  noAktaHash  String?     @unique
-  noFisik     String
-  createdById Int?
-  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  arsipFiles  ArsipFile[]
-
-  @@index([createdAt])
-  @@index([createdById])
-}
-
-model SuratKehilangan {
-  id          Int      @id @default(autoincrement())
-  nik         String
-  nikEnc      String?
-  nikHash     String?
-  tanggal     DateTime @db.Date
-  noFisik     String
-  files       String
-  createdById Int?
-  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([nik, tanggal])
-  @@index([createdAt])
-  @@index([createdById])
-}
-
-model SuratPermohonanPindah {
-  id          Int         @id @default(autoincrement())
-  nik         String
-  nikEnc      String?
-  nikHash     String?     @unique
-  noFisik     String
-  createdById Int?
-  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  arsipFiles  ArsipFile[]
-
-  @@index([createdAt])
-  @@index([createdById])
-}
-
-model SuratPerubahanKependudukan {
-  id          Int         @id @default(autoincrement())
-  nik         String
-  nikEnc      String?
-  nikHash     String?     @unique
-  noFisik     String
-  createdById Int?
-  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  arsipFiles  ArsipFile[]
-
-  @@index([createdAt])
-  @@index([createdById])
+  id           Int         @id @default(autoincrement())
+  originalName String
+  path         String
+  uploadById   Int?
+  uploadBy     User?       @relation(fields: [uploadById], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  arsipSemua   ArsipSemua? @relation(fields: [arsipSemuaId], references: [id], onDelete: Cascade)
+  arsipSemuaId Int?
 }
