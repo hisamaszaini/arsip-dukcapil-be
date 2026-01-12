@@ -12,7 +12,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
-  ) {}
+  ) { }
 
   // REGISTER USER
   // async register(dto: RegisterDto) {
@@ -42,8 +42,8 @@ export class AuthService {
 
   // LOGIN
   async login(dto: LoginDto): Promise<{ message: string; data: TokenPair }> {
-    const user = await this.prisma.user.findUnique({
-      where: { username: dto.username },
+    const user = await this.prisma.user.findFirst({
+      where: { username: { equals: dto.username, mode: 'insensitive' } },
     });
     if (!user || !(await verify(dto.password, user.password))) {
       throw new UnauthorizedException('Username atau password salah!');

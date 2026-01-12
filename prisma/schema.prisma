@@ -79,10 +79,11 @@ model Kategori {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   arsipSemuas ArsipSemua[]
+  arsipFiles  ArsipFile[]
 }
 
 model ArsipSemua {
-  id          Int         @id @default(autoincrement())
+  id          Int         @default(autoincrement())
   idKategori  Int
   kategori    Kategori    @relation(fields: [idKategori], references: [id], onDelete: Cascade)
   no          String
@@ -100,6 +101,7 @@ model ArsipSemua {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@id([id, idKategori])
   @@index([idKategori])
   @@index([idKategori, no])
   @@index([idKategori, no, tanggal])
@@ -107,13 +109,18 @@ model ArsipSemua {
 }
 
 model ArsipFile {
-  id           Int         @id @default(autoincrement())
-  originalName String
-  path         String
-  uploadById   Int?
-  uploadBy     User?       @relation(fields: [uploadById], references: [id], onDelete: SetNull)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  arsipSemua   ArsipSemua? @relation(fields: [arsipSemuaId], references: [id], onDelete: Cascade)
+  id         Int      @default(autoincrement())
+  path       String
+  uploadById Int?
+  uploadBy   User?    @relation(fields: [uploadById], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  arsipSemua   ArsipSemua? @relation(fields: [arsipSemuaId, idKategori], references: [id, idKategori], onDelete: Cascade)
   arsipSemuaId Int?
+
+  idKategori Int
+  kategori   Kategori @relation(fields: [idKategori], references: [id], onDelete: Cascade)
+
+  @@id([id, idKategori])
 }

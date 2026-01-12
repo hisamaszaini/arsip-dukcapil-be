@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import * as path from 'path';
 import { PrismaService } from 'prisma/prisma.service';
 import {
   CreateArsipDto,
@@ -47,6 +48,19 @@ export class ArsipService {
     private prisma: PrismaService,
     private kategoriService: KategoriService,
   ) { }
+
+  private injectOriginalName(data: any) {
+    if (!data) return data;
+    const records = Array.isArray(data) ? data : [data];
+    records.forEach((record: any) => {
+      if (record.arsipFiles) {
+        record.arsipFiles.forEach((file: any) => {
+          if (file.path) file.originalName = path.basename(file.path);
+        });
+      }
+    });
+    return data;
+  }
 
   private async validateKategoriRules(
     kategoriId: number,
@@ -238,9 +252,9 @@ export class ArsipService {
         });
 
         fileRecords.push({
-          originalName: file.originalname,
           path: relativePath,
           uploadBy: { connect: { id: userId } },
+          kategori: { connect: { id: data.idKategori } },
         });
       }
 
@@ -258,7 +272,7 @@ export class ArsipService {
         include: { arsipFiles: true },
       });
 
-      const cleaned = autoDecryptAndClean(newRecord);
+      const cleaned = this.injectOriginalName(autoDecryptAndClean(newRecord));
 
       return createdResponse('Arsip', cleaned);
     } catch (error) {
@@ -332,7 +346,8 @@ export class ArsipService {
       }),
     ]);
 
-    const cleaned = autoDecryptAndClean(data);
+    const cleaned = this.injectOriginalName(autoDecryptAndClean(data));
+
     const meta = {
       page,
       limit,
@@ -350,7 +365,7 @@ export class ArsipService {
         include: { arsipFiles: { orderBy: { id: 'asc' } } },
       });
 
-      const cleaned = autoDecryptAndClean(data);
+      const cleaned = this.injectOriginalName(autoDecryptAndClean(data));
 
       return foundResponse('Arsip', cleaned);
     } catch (error) {
@@ -412,7 +427,7 @@ export class ArsipService {
       return await this.prisma.$transaction(async (tx) => {
         // Update data utama terlebih dahulu
         const updatedArsip = await tx.arsipSemua.update({
-          where: { id },
+          where: { id_idKategori: { id, idKategori: existingRecord.idKategori } }, // Use compound key
           data: updatePayload,
           include: { arsipFiles: true },
         });
@@ -443,7 +458,7 @@ export class ArsipService {
             const newFile = files[i];
             if (!newFile) continue;
 
-            const oldFile = await tx.arsipFile.findUnique({
+            const oldFile = await tx.arsipFile.findFirst({
               where: { id: fileId },
             });
             if (!oldFile) {
@@ -466,13 +481,15 @@ export class ArsipService {
             });
 
             // Update record file di database
+            // Removed redundant updateMany (using update with compound key below)
+            // Better: We know idKategori from ArsipSemua (kategoriId)
+            // Better: We know idKategori from ArsipSemua (kategoriId)
             await tx.arsipFile.update({
-              where: { id: fileId },
+              where: { id_idKategori: { id: fileId, idKategori: kategoriId } },
               data: {
-                originalName: newFile.originalname,
                 path: newPath,
                 uploadBy: { connect: { id: userId } },
-              },
+              }
             });
           }
         }
@@ -488,22 +505,31 @@ export class ArsipService {
 
             await tx.arsipFile.create({
               data: {
-                originalName: newFile.originalname,
                 path: relativePath,
                 uploadBy: { connect: { id: userId } },
-                arsipSemua: { connect: { id } },
+                arsipSemua: {
+                  connect: {
+                    id_idKategori: {
+                      id: id,
+                      idKategori: kategoriId
+                    }
+                  }
+                },
+                kategori: { connect: { id: kategoriId } },
+                // Removed redundant explicit ID setting and duplicate idKategori
+                // arsipSemuaId: id,
               },
             });
           }
         }
 
-        // Ambil data terbaru setelah semua update dan penambahan file
+        // Ambil data terbaru
         const refreshed = await tx.arsipSemua.findUnique({
-          where: { id },
+          where: { id_idKategori: { id, idKategori: existingRecord.idKategori } },
           include: { arsipFiles: { orderBy: { id: 'asc' } } },
         });
 
-        const cleaned = autoDecryptAndClean(refreshed);
+        const cleaned = this.injectOriginalName(autoDecryptAndClean(refreshed));
 
         return updatedResponse('Arsip', cleaned);
       });
@@ -525,7 +551,7 @@ export class ArsipService {
 
   async removeFile(fileId: number, userId: number, userRole: string) {
     try {
-      const file = await this.prisma.arsipFile.findUniqueOrThrow({
+      const file = await this.prisma.arsipFile.findFirstOrThrow({
         where: { id: fileId },
         include: {
           arsipSemua: {
@@ -560,7 +586,7 @@ export class ArsipService {
       await deleteFileFromDisk(file.path);
 
       await this.prisma.arsipFile.delete({
-        where: { id: fileId },
+        where: { id_idKategori: { id: fileId, idKategori: file.idKategori } },
       });
 
       return deletedResponse('File');
@@ -589,7 +615,9 @@ export class ArsipService {
         }
       }
 
-      await this.prisma.arsipSemua.delete({ where: { id } });
+      await this.prisma.arsipSemua.delete({
+        where: { id_idKategori: { id, idKategori: existingRecord.idKategori } },
+      });
 
       return deletedResponse('Arsip', existingRecord);
     } catch (error) {
@@ -600,7 +628,7 @@ export class ArsipService {
 
   async serveFile(fileId: number, res: any) {
     try {
-      const file = await this.prisma.arsipFile.findUniqueOrThrow({
+      const file = await this.prisma.arsipFile.findFirstOrThrow({
         where: { id: fileId },
         include: {
           arsipSemua: {
@@ -620,7 +648,7 @@ export class ArsipService {
       }
 
       // Cek apakah file adalah JPG (target enkripsi)
-      if (file.originalName.match(/\.(jpg|jpeg)$/i)) {
+      if (file.path.match(/\.(jpg|jpeg)$/i)) {
         // Coba decrypt dulu (Smart Decrypt)
         // Ini menangani kasus:
         // 1. Kategori isEncrypt=true (file terenkripsi) -> Decrypt sukses
@@ -634,7 +662,7 @@ export class ArsipService {
 
           res.set({
             'Content-Type': 'image/jpeg',
-            'Content-Disposition': `inline; filename="${file.originalName}"`,
+            'Content-Disposition': `inline; filename="${path.basename(file.path)}"`,
             'Content-Length': decrypted.length,
           });
           res.send(decrypted);
@@ -655,12 +683,12 @@ export class ArsipService {
 
   async toggleSync(id: number) {
     try {
-      const arsip = await this.prisma.arsipSemua.findUniqueOrThrow({
+      const arsip = await this.prisma.arsipSemua.findFirstOrThrow({
         where: { id },
       });
 
       const updated = await this.prisma.arsipSemua.update({
-        where: { id },
+        where: { id_idKategori: { id, idKategori: arsip.idKategori } },
         data: {
           isSync: !arsip.isSync,
           syncAt: !arsip.isSync ? new Date() : null,
