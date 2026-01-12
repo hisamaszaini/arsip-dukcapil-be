@@ -193,8 +193,14 @@ export class ArsipService {
           shouldCheck = false;
 
         if (shouldCheck) {
+          // If encrypted, check against hash
+          const checkNo = kategori.isEncrypt ? hashDeterministic(no) : no;
+
           const duplicate = await this.prisma.arsipSemua.findFirst({
-            where,
+            where: {
+              ...where,
+              no: checkNo,
+            },
             select: { id: true },
           });
 
@@ -258,12 +264,21 @@ export class ArsipService {
         });
       }
 
-      const noEnc = JSON.stringify(encryptValue(data.no));
-      const noHash = hashDeterministic(data.no);
+      // Process encryption for 'no'
+      let finalNo = data.no;
+      let noEnc: string | null = null;
+      let noHash: string | null = null;
+
+      if (isEncrypt) {
+        finalNo = hashDeterministic(data.no);
+        noEnc = JSON.stringify(encryptValue(data.no));
+        noHash = hashDeterministic(data.no);
+      }
 
       const newRecord = await this.prisma.arsipSemua.create({
         data: {
           ...data,
+          no: finalNo,
           noEnc,
           noHash,
           createdById: userId,
@@ -418,9 +433,20 @@ export class ArsipService {
         createdById: userId,
       };
 
+      // Check encryption setting
+      const kategoriResponse = await this.kategoriService.findOne(kategoriId);
+      const isEncrypt = kategoriResponse.data?.isEncrypt || false;
+
       if (data.no) {
-        updatePayload.noEnc = JSON.stringify(encryptValue(data.no));
-        updatePayload.noHash = hashDeterministic(data.no);
+        if (isEncrypt) {
+          updatePayload.no = hashDeterministic(data.no);
+          updatePayload.noEnc = JSON.stringify(encryptValue(data.no));
+          updatePayload.noHash = hashDeterministic(data.no);
+        } else {
+          updatePayload.no = data.no;
+          updatePayload.noEnc = null;
+          updatePayload.noHash = null;
+        }
       }
 
       // --- Transaksi aman ---
@@ -440,10 +466,6 @@ export class ArsipService {
         const finalNoFisik = mergedData.noFisik || existingRecord.noFisik;
 
         const uploadSubfolder = `${this.UPLOAD_PATH}/${kategoriId}/${year}/${finalNoFisik}`;
-
-        // Check encryption setting
-        const kategoriResponse = await this.kategoriService.findOne(kategoriId);
-        const isEncrypt = kategoriResponse.data?.isEncrypt || false;
 
         // --- Ambil daftar fileIds dari body ---
         // Note: fileIds sudah ditransform oleh Zod menjadi number[]

@@ -91,8 +91,20 @@ export function handlePrismaError(
 
     // P2003: Foreign key constraint failed
     if (error.code === 'P2003') {
-      const rawField = error.meta?.field_name;
-      const field = typeof rawField === 'string' ? rawField : 'relasi';
+      const fieldName = error.meta?.field_name as string | undefined;
+      const constraint = error.meta?.constraint as string | undefined;
+
+      let field = fieldName || 'relasi';
+
+      // Try to parse field from constraint name like "Table_column_fkey"
+      if (!fieldName && constraint) {
+        const match = constraint.match(/_([a-zA-Z0-9]+)_fkey$/);
+        if (match && match[1]) {
+          field = match[1];
+        } else {
+          field = constraint;
+        }
+      }
 
       throw new BadRequestException({
         success: false,
