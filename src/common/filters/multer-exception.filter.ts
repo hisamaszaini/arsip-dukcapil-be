@@ -14,8 +14,9 @@ export class MulterExceptionFilter implements ExceptionFilter {
     const errors: Record<string, string> = {};
 
     if (exception.code === 'LIMIT_FILE_SIZE') {
-      message = 'Ukuran file melebihi batas maksimum.';
-      errors[field] = 'Ukuran file terlalu besar.';
+      const maxSize = process.env.MAX_FILE_SIZE_MB || '1';
+      message = `Ukuran file terlalu besar. Maksimal yang diizinkan adalah ${maxSize}MB.`;
+      errors[field] = `File melebihi batas ${maxSize}MB.`;
     } else {
       errors[field] = message;
     }

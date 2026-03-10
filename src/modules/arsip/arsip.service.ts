@@ -68,6 +68,7 @@ export class ArsipService {
     files: Express.Multer.File[],
     existingFileCount: number = 0,
     excludeArsipId?: number,
+    replacedFileCount: number = 0,
   ) {
     // Use cached service instead of direct prisma call
     const kategoriResponse = await this.kategoriService.findOne(kategoriId);
@@ -77,10 +78,10 @@ export class ArsipService {
       throw new BadRequestException(`Data kategori tidak ditemukan`);
     }
 
-    const totalFiles = existingFileCount + files.length;
+    const totalFiles = existingFileCount - replacedFileCount + files.length;
     if (totalFiles > kategori.maxFile) {
       throw new BadRequestException(
-        `Maksimal file untuk kategori ${kategori.name} adalah ${kategori.maxFile}. Saat ini: ${existingFileCount}, Ditambah: ${files.length}`,
+        `Maksimal file untuk kategori ${kategori.name} adalah ${kategori.maxFile}. Saat ini: ${existingFileCount}, Diganti: ${replacedFileCount}, Ditambah: ${files.length}`,
       );
     }
 
@@ -130,6 +131,8 @@ export class ArsipService {
         if (!/^[a-zA-Z0-9\-\.\/]+$/.test(no)) {
           throw new BadRequestException(`Nomor harus berupa huruf dan angka`);
         }
+      } else if (kategori.noType === NoType.FREE) {
+        // No restriction for FREE type
       }
 
       // 4. Regex Validation (Most strict)
@@ -416,17 +419,21 @@ export class ArsipService {
         tanggal: data.tanggal ?? existingRecord.tanggal ?? undefined,
       };
 
+      const fileIds = data.fileIds || [];
+      const replacedFileCount = Math.min(fileIds.length, files.length);
+
       await this.validateKategoriRules(
         kategoriId,
         mergedData,
         files,
         existingRecord.arsipFiles.length,
         id,
+        replacedFileCount,
       );
 
       // Exclude fileIds from updatePayload as it's not a column in ArsipSemua
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { fileIds, ...restData } = data;
+      const { fileIds: _, ...restData } = data;
 
       const updatePayload: any = {
         ...restData,

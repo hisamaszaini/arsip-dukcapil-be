@@ -15,7 +15,7 @@ export const CreateKategoriSchema = z.object({
   isEncrypt: z.boolean().default(false),
 
   // Dynamic Validation Rules
-  noType: z.enum(['NUMERIC', 'ALPHANUMERIC', 'CUSTOM']).default('ALPHANUMERIC'),
+  noType: z.enum(['NUMERIC', 'ALPHANUMERIC', 'CUSTOM', 'FREE']).default('ALPHANUMERIC'),
   noMinLength: z.number().int().optional(),
   noMaxLength: z.number().int().optional(),
   noRegex: z.string().optional(),

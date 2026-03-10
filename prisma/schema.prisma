@@ -28,6 +28,7 @@ enum NoType {
   NUMERIC
   ALPHANUMERIC
   CUSTOM
+  FREE
 }
 
 enum UniqueConstraintType {

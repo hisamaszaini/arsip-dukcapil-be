@@ -49,10 +49,14 @@ export class ArsipController {
     FilesInterceptor('files', 30, {
       storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+        if (
+          !file.mimetype.match(
+            /\/(jpg|jpeg|png|pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document)$/,
+          )
+        ) {
           return cb(
             new BadRequestException({
-              message: 'Hanya file JPG/JPEG yang diizinkan',
+              message: 'Hanya file JPG/JPEG/PNG/PDF/DOC/DOCX yang diizinkan',
               errors: {
                 [file.fieldname]: `File ${file.originalname} tidak valid`,
               },
@@ -90,10 +94,14 @@ export class ArsipController {
     FilesInterceptor('files', 30, {
       storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+        if (
+          !file.mimetype.match(
+            /\/(jpg|jpeg|png|pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document)$/,
+          )
+        ) {
           return cb(
             new BadRequestException({
-              message: 'Hanya file JPG/JPEG yang diizinkan',
+              message: 'Hanya file JPG/JPEG/PNG/PDF/DOC/DOCX yang diizinkan',
               errors: {
                 [file.fieldname]: `File ${file.originalname} tidak valid`,
               },
@@ -164,10 +172,14 @@ export class ArsipController {
         fileSize: Number(process.env.MAX_FILE_SIZE_MB || 1) * 1024 * 1024,
       },
       fileFilter: (req, file, cb) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg)$/)) {
+        if (
+          !file.mimetype.match(
+            /\/(jpg|jpeg|png|pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document)$/,
+          )
+        ) {
           return cb(
             new BadRequestException({
-              message: 'Hanya file JPG/JPEG yang diizinkan',
+              message: 'Hanya file JPG/JPEG/PNG/PDF/DOC/DOCX yang diizinkan',
               errors: {
                 [file.fieldname]: `File ${file.originalname} tidak valid`,
               },
